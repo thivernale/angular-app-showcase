@@ -1,0 +1,15 @@
+<section class="card-body" [ngClass]="{'d-none': this.visibleTodosSignal().length === 0}">
+  <ul class="list-group">
+    @for (item of visibleTodosSignal(); track item.id) {
+      <li class="list-group-item">
+        <input
+          type="checkbox"
+          name="item-checkbox"
+          class="form-check-input me-2 rounded-circle p-2"
+          [checked]="item.isCompleted"
+          (change)="({})">
+        {{ item.content }}
+      </li>
+    }
+  </ul>
+</section>

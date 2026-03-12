@@ -1,0 +1,10 @@
+<header class="card-header">
+  <input
+    type="text"
+    class="form-control fs-5"
+    placeholder="What needs to be done?"
+    autofocus
+    [value]="text"
+    (keyup)="changeText($event)"
+    (keyup.enter)="addTodo()"/>
+</header>
