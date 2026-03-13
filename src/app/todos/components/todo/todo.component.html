@@ -1,0 +1,30 @@
+<li class="d-flex gap-2 align-items-center list-group-item" [ngClass]="{'active': editMode()}">
+  @let todo = todoInput();
+  <input
+    type="checkbox"
+    name="item-checkbox"
+    class="form-check-input rounded-circle p-2"
+    [checked]="todo.isCompleted"
+    (change)="toggleCompleted()"
+    [title]="todo.id"
+  />
+  @if (editMode()) {
+    <input
+      #editInput
+      type="text"
+      class="form-control"
+      [value]="textComputed()"
+      (keyup.esc)="textComputed.set(todo.content)"
+      (keyup)="changeText($event)"
+      (keyup.enter)="saveEdit()"
+      (focusout)="setEditId.emit(null)">
+  } @else {
+    <label class="p-2 w-100 fs-5" (dblclick)="setEditId.emit(todo.id)">
+      {{ todo.content }}
+      @if (textComputed() !== todo.content) {
+        <span class="badge badge-warning border-warning border text-secondary text-uppercase">unsaved changes</span>
+      }
+    </label>
+
+  }
+</li>
