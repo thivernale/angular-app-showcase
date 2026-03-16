@@ -1,4 +1,4 @@
-import { computed, Injectable, signal } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { StateFilter } from '../types/state-filter';
 import { Todo } from '../types/todo.interface';
 
@@ -22,6 +22,16 @@ export class TodosService {
 
   remove(id: string) {
     let updateFn = (todos: Todo[]) => [...todos.filter(t => t.id !== id)];
+    this.updateSignal(updateFn);
+  }
+
+  toggleCompleted(id: string) {
+    let updateFn = (todos: Todo[]) => [...todos.map(t => t.id === id ? { ...t, isCompleted: !t.isCompleted } : t)];
+    this.updateSignal(updateFn);
+  }
+
+  toggleAllCompleted(isCompleted: boolean) {
+    let updateFn = (todos: Todo[]) => [...todos.map(t => ({ ...t, isCompleted }))];
     this.updateSignal(updateFn);
   }
 

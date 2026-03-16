@@ -1,13 +1,5 @@
-<li class="d-flex gap-2 align-items-center list-group-item" [ngClass]="{'active': editMode()}">
+<li class="list-group-item list-group-item-action" [ngClass]="{'active': editMode()}">
   @let todo = todoInput();
-  <input
-    type="checkbox"
-    name="item-checkbox"
-    class="form-check-input rounded-circle p-2"
-    [checked]="todo.isCompleted"
-    (change)="toggleCompleted()"
-    [title]="todo.id"
-  />
   @if (editMode()) {
     <input
       #editInput
@@ -19,12 +11,22 @@
       (keyup.enter)="saveEdit()"
       (focusout)="setEditId.emit(null)">
   } @else {
-    <label class="p-2 w-100 fs-5" (dblclick)="setEditId.emit(todo.id)">
-      {{ todo.content }}
-      @if (textComputed() !== todo.content) {
-        <span class="badge badge-warning border-warning border text-secondary text-uppercase">unsaved changes</span>
-      }
-    </label>
-
+    <div class="d-flex gap-2 align-items-center ">
+      <input
+        type="checkbox"
+        name="item-checkbox"
+        class="form-check-input rounded-circle p-2"
+        [checked]="todo.isCompleted"
+        (change)="toggleCompleted()"
+        [title]="todo.id"
+      />
+      <label class="p-2 w-100 fs-5" (dblclick)="setEditId.emit(todo.id)" [ngClass]="{'text-decoration-line-through': todo.isCompleted}">
+        {{ todo.content }}
+        @if (textComputed() !== todo.content) {
+          <span class="badge badge-warning border-warning border text-secondary text-uppercase">unsaved changes</span>
+        }
+      </label>
+      <button class="btn btn-outline-light text-dark" (click)="remove()">X</button>
+    </div>
   }
 </li>

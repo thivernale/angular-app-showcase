@@ -37,11 +37,15 @@ export class TodoComponent {
   }
 
   protected toggleCompleted() {
-    this.service.update({ ...this.todoInput(), isCompleted: !this.todoInput().isCompleted });
+    this.service.toggleCompleted(this.todoInput().id);
   }
 
   protected saveEdit() {
     this.service.update({ ...this.todoInput(), content: this.textComputed() });
     this.setEditId.emit(null);
+  }
+
+  protected remove() {
+    this.service.remove(this.todoInput().id);
   }
 }

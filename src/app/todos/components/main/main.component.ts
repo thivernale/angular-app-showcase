@@ -24,11 +24,11 @@ export class MainComponent {
       !t.isCompleted && this.stateFilterSignal() === StateFilter.ACTIVE ||
       this.stateFilterSignal() === StateFilter.ALL)
   );
+  protected allTodosCompletedSignal = computed(() => this.service.todos().every(t => t.isCompleted));
 
-  // TODO remove sample data
-  constructor() {
-    this.service.add('Initial todo');
-    this.service.add('Second todo');
-    this.service.update({ ... this.service.todos()[0], isCompleted: true });
+  protected toggleAll(event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    this.service.toggleAllCompleted(checked);
+
   }
 }
