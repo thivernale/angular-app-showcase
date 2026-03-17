@@ -1,5 +1,6 @@
-import { Component, computed, Signal, signal, WritableSignal, } from '@angular/core';
+import { Component, computed, input, Signal, signal, WritableSignal, } from '@angular/core';
 import { DateTime, Info, Interval } from 'luxon';
+import { Activities } from './types/activities.interface';
 
 @Component({
   selector: 'app-calendar',
@@ -7,6 +8,7 @@ import { DateTime, Info, Interval } from 'luxon';
   styleUrl: './calendar.component.css',
 })
 export class CalendarComponent {
+  activities: any = input.required<Activities>();
   activeDay: WritableSignal<DateTime|null> = signal(null);
 
   today = signal(DateTime.local()).asReadonly();
@@ -25,4 +27,5 @@ export class CalendarComponent {
         return value.start;
       })
   );
+  DATE_MED = DateTime.DATE_MED;
 }
