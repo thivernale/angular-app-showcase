@@ -1,6 +1,13 @@
+.calendar-container {
+  padding: 20px;
+  display: flex;
+  flex-direction: row;
+  align-items: start;
+  justify-content: center;
+  gap: 20px;
+}
+
 .calendar {
-  max-width: 800px;
-  margin: 0 auto;
   padding: 20px;
 }
 
@@ -12,7 +19,8 @@
 }
 
 .calendar-header button {
-  padding: 8px 16px;
+  padding: 0 8px 8px;
+  margin-top: -8px;
   cursor: pointer;
 }
 
@@ -66,6 +74,42 @@
   opacity: 0.4;
 }
 
+.day-cell.active {
+  background-color: #28a745;
+  color: white;
+  font-weight: bold;
+}
+
 .day-number {
   display: block;
+}
+
+.activities-container {
+  padding: 20px;
+}
+
+.activities-section {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+.activities-section h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.activities-section ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.activities-section li {
+  margin-bottom: 8px;
+}
+
+.activities-none {
+  color: #777;
 }
