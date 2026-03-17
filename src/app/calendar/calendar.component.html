@@ -1,0 +1,25 @@
+<div class="calendar">
+  <div class="calendar-header">
+    <button (click)="startOfMonth.set(startOfMonth().minus({ months: 1 }))">Previous</button>
+    <h2>{{ startOfMonth().toFormat('MMMM yyyy') }}</h2>
+    <button (click)="startOfMonth.set(startOfMonth().plus({ months: 1 }))">Next</button>
+  </div>
+
+  <div class="calendar-grid">
+    <div class="weekday-headers">
+      @for (day of weekDays(); track $index) {
+        <div class="weekday-header">{{ day }}</div>
+      }
+    </div>
+
+    <div class="days-grid">
+      @for (day of daysInMonth(); track $index) {
+        <div class="day-cell"
+             [class.today]="day.hasSame(today(), 'day')"
+             [class.other-month]="!day.hasSame(startOfMonth(), 'month')">
+          <span class="day-number">{{ day.day }}</span>
+        </div>
+      }
+    </div>
+  </div>
+</div>
