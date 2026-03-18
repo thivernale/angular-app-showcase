@@ -1,0 +1,9 @@
+[
+  {"name": "Toyota", "id": 1, "location": 1},
+  {"name": "VW", "id": 2, "location": 2},
+  {"name": "Skoda", "id": 3, "location": 3},
+  {"name": "BMW", "id": 4, "location": 4},
+  {"name": "Mercedes-Benz", "id": 5, "location": 5},
+  {"name": "Audi", "id": 6, "location": 2},
+  {"name": "Dacia", "id": 7, "location": 5}
+]
