@@ -12,7 +12,7 @@ export class RegionService {
     return this.regions;
   }
 
-  getRegion(id: number): Region | undefined {
-    return this.regions.find(r => r.id === id);
+  getRegionName(id: number): string {
+    return this.regions.find(r => r.id === id)?.name ?? 'Unknown Region';
   }
 }

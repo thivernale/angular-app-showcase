@@ -22,6 +22,6 @@ describe('RegionService', () => {
   })
 
   it('should get region by id', () => {
-    expect(service.getRegion(1)).toStrictEqual({ id: 1, name: 'Sofia'});
+    expect(service.getRegionName(1)).toStrictEqual('Sofia');
   });
 });

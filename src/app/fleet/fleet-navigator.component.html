@@ -1,0 +1,17 @@
+<div class="container-fluid p-5 justify-content-center">
+  <h1 class="mb-5 text-center">Fleet Navigator</h1>
+
+  <div class="d-flex flex-row flex-wrap gap-5 justify-content-center m-5">
+    @for (vehicle of vehicles$ | async; track vehicle.id) {
+      <div class="col-3">
+        <app-vehicle [vehicle]="vehicle"/>
+      </div>
+    }
+  </div>
+
+  <div class="container m-5 justify-content-start">
+    <h4>History</h4>
+
+    <app-history/>
+  </div>
+</div>

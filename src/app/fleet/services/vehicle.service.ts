@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
+import { BehaviorSubject, Subject } from 'rxjs';
 import initialData from '../data/vehicles.json';
+import { LogEntry } from '../types/log-entry';
 import { Vehicle } from '../types/vehicle';
 
 @Injectable({
@@ -7,12 +9,30 @@ import { Vehicle } from '../types/vehicle';
 })
 export class VehicleService {
   private vehicles: Vehicle[] = [...initialData];
+  private logs: LogEntry[] = [];
 
-  getVehicles() {
-    return this.vehicles;
+  private logSubject = new BehaviorSubject<LogEntry[]>(this.logs);
+  log$ = this.logSubject.asObservable();
+
+  private vehicleSubject = new BehaviorSubject<Vehicle[]>(this.vehicles);
+  vehicle$ = this.vehicleSubject.asObservable();
+
+  getVehicleName(id: number) {
+    return this.vehicles.find(v => v.id === id)?.name ?? 'Unknown Vehicle';
   }
 
-  getVehicle(id: number): Vehicle | undefined {
-    return this.vehicles.find(v => v.id === id);
+  changeLocation(vehicle: Vehicle, newLocationId: number) {
+    const logEntry = {
+      vehicle: vehicle.id,
+      source: vehicle.location,
+      destination: newLocationId,
+      timestamp: Date.now()
+    } as LogEntry;
+
+    this.vehicles = this.vehicles.map(v => v.id === vehicle.id ? { ...v, location: newLocationId } : v);
+    this.vehicleSubject.next(this.vehicles);
+
+    this.logs.push(logEntry);
+    this.logSubject.next(this.logs);
   }
 }

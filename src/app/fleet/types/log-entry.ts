@@ -1,5 +1,5 @@
 export interface LogEntry {
-  timestamp: string;
+  timestamp: number;
   vehicle: number;
   source: number;
   destination: number;
