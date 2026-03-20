@@ -1,5 +1,7 @@
 import { AsyncPipe } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { environment } from '../../../../environments/environment';
 import { RegionService } from '../../services/region.service';
 import { VehicleService } from '../../services/vehicle.service';
 import { LogEntry } from '../../types/log-entry';
@@ -11,11 +13,26 @@ import { LogEntry } from '../../types/log-entry';
   ],
   templateUrl: './history.component.html',
 })
-export class HistoryComponent {
+export class HistoryComponent implements OnInit, OnDestroy {
   private vehicleService = inject(VehicleService);
   private regionService = inject(RegionService);
+  private logs: LogEntry[] = [];
 
   log$ = this.vehicleService.log$;
+  private sub!: Subscription;
+
+  ngOnInit() {
+    this.sub = this.log$.subscribe(log => {
+      this.logs.push(log);
+      if (this.logs.length > environment.history_steps) {
+        this.logs.shift();
+      }
+    });
+  }
+
+  ngOnDestroy() {
+    this.sub.unsubscribe();
+  }
 
   formatLogEntry(entry: LogEntry): string {
     return `

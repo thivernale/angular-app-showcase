@@ -9,9 +9,8 @@ import { Vehicle } from '../types/vehicle';
 })
 export class VehicleService {
   private vehicles: Vehicle[] = [...initialData];
-  private logs: LogEntry[] = [];
 
-  private logSubject = new BehaviorSubject<LogEntry[]>(this.logs);
+  private logSubject = new Subject<LogEntry>();
   log$ = this.logSubject.asObservable();
 
   private vehicleSubject = new BehaviorSubject<Vehicle[]>(this.vehicles);
@@ -32,7 +31,6 @@ export class VehicleService {
     this.vehicles = this.vehicles.map(v => v.id === vehicle.id ? { ...v, location: newLocationId } : v);
     this.vehicleSubject.next(this.vehicles);
 
-    this.logs.push(logEntry);
-    this.logSubject.next(this.logs);
+    this.logSubject.next(logEntry);
   }
 }
