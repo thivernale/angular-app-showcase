@@ -12,6 +12,7 @@ describe('VehicleComponent', () => {
     }).compileComponents();
 
     fixture = TestBed.createComponent(VehicleComponent);
+    fixture.componentRef.setInput('vehicle', { id: 1, name: 'Test Vehicle', region: 1 });
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

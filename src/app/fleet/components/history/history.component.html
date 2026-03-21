@@ -1,5 +1,5 @@
 <ul class="list-group col-6">
-  @for (entry of log$ | async; track $index) {
+  @for (entry of logs; track $index) {
     <li class="list-group-item">
       {{ formatLogEntry(entry) }}
     </li>

@@ -8,17 +8,14 @@ import { LogEntry } from '../../types/log-entry';
 
 @Component({
   selector: 'app-history',
-  imports: [
-    AsyncPipe
-  ],
   templateUrl: './history.component.html',
 })
 export class HistoryComponent implements OnInit, OnDestroy {
   private vehicleService = inject(VehicleService);
   private regionService = inject(RegionService);
-  private logs: LogEntry[] = [];
+  protected logs: LogEntry[] = [];
 
-  log$ = this.vehicleService.log$;
+  private log$ = this.vehicleService.log$;
   private sub!: Subscription;
 
   ngOnInit() {
