@@ -1,3 +1,4 @@
+import { NgClass } from '@angular/common';
 import { Component, inject, Input } from '@angular/core';
 import { RegionService } from '../../services/region.service';
 import { VehicleService } from '../../services/vehicle.service';
@@ -6,12 +7,14 @@ import { Vehicle } from '../../types/vehicle';
 @Component({
   selector: 'app-vehicle',
   templateUrl: './vehicle.component.html',
+  imports: [
+    NgClass
+  ]
 })
 export class VehicleComponent {
-  private vehicleService = inject(VehicleService);
-  private regionService = inject(RegionService);
-
   @Input() vehicle!: Vehicle;
+  private readonly vehicleService = inject(VehicleService);
+  private readonly regionService = inject(RegionService);
 
   getRegions() {
     return this.regionService.getRegions()

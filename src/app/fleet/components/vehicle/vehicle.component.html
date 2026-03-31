@@ -2,12 +2,15 @@
   <div class="card-header">{{ vehicle.name }}</div>
   <div class="card-body d-flex flex-column gap-2">
     <h5 class="card-title">{{ vehicle.name }}</h5>
-    <div class="fs-6 card-subtitle text-secondary">Current location: {{ getLocationName(vehicle.location) }}</div>
-    <label for="location-select" class="form-label">
+    <div class="fs-6 card-subtitle ">Current location: <span
+      class="fw-bold">{{ getLocationName(vehicle.location) }}</span>
+    </div>
+    <label class="form-label" for="location-select">
       Change location to:
-      <select class="form-select mt-1" (change)="changeLocation($event)">
+      <select (change)="changeLocation($event)" [ngClass]="{'text-secondary': true}" class="form-select mt-1">
+        <option class="text-secondary" value="">[please, select]</option>
         @for (region of getRegions(); track region.id) {
-          <option [value]="region.id">{{ region.name }}</option>
+          <option [value]="region.id" class="text-black">{{ region.name }}</option>
         }
       </select>
     </label>
