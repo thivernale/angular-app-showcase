@@ -1,0 +1,31 @@
+.alert {
+  padding: 16px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 400;
+  z-index: 10000;
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 300px;
+}
+
+.success {
+  color: #0f5132;
+  background: #d1e7dd;
+}
+
+.info {
+  color: #055160;
+  background: #cff4fc;
+}
+
+.warning {
+  color: #664d03;
+  background: #fff3cd;
+}
+
+.danger {
+  color: #842029;
+  background: #f8d7da;
+}

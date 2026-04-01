@@ -1,10 +1,12 @@
 import { Component, signal } from '@angular/core';
+
+import { AlertComponent } from './components/alert/alert.component';
 import { MainComponent } from './components/main/main.component';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 
 @Component({
   selector: 'app-root',
-  imports: [SidebarComponent, MainComponent],
+  imports: [SidebarComponent, MainComponent, AlertComponent],
   templateUrl: './app.html',
   host: { '(window:resize)': 'onResize($event)' },
 })
