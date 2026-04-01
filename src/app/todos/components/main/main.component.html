@@ -1,22 +1,23 @@
-<section class="card-body position-relative" [ngClass]="{'d-none': this.visibleTodosSignal().length === 0}">
+<section [ngClass]="{'d-none': this.visibleTodosSignal().length === 0}" class="card-body position-relative">
   <input
-    type="checkbox"
-    class="form-check-input d-none"
     (change)="toggleAll($event)"
     [checked]="allTodosCompletedSignal()"
-    id="toggle-all">
+    class="form-check-input d-none"
+    id="toggle-all"
+    type="checkbox">
   <label
-    class="p-2 bg-primary position-absolute top-0 form-check-input rounded-circle"
-    style="margin-top: -2.5rem;"
+    [ngClass]="{'bg-primary': allTodosCompletedSignal()}"
+    [title]="`${allTodosCompletedSignal() ? 'Mark all as incomplete' : 'Mark all as complete'}`"
+    class="p-2 btn btn-outline-primary position-absolute top-0 form-check-input rounded-circle"
     for="toggle-all"
-    title="Mark all as complete"
+    style="margin-top: -2.5rem;"
   >&nbsp;</label>
   <ul class="list-group">
     @for (item of visibleTodosSignal(); track item.id) {
       <app-todo
-        [todoInput]="item"
-        [editMode]="item.id === editIdSignal()"
         (setEditId)="editIdSignal.set($event)"
+        [editMode]="item.id === editIdSignal()"
+        [todoInput]="item"
       />
     }
   </ul>
