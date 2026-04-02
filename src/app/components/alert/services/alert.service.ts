@@ -6,7 +6,7 @@ import { Alert } from '../types/alert.interface';
   providedIn: 'root',
 })
 export class AlertService {
-  private alertSubject = new Subject<Alert>();
+  private readonly alertSubject = new Subject<Alert>();
   alert$ = this.alertSubject.asObservable();
 
   showAlert(alert: Alert) {

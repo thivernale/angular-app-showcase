@@ -1,4 +1,4 @@
 @let alert = alert$ | async;
 @if (alert) {
-  <div [ngClass]="['alert', alert.type]">{{ alert.text }}</div>
+  <div [innerHTML]="alert.text" [ngClass]="['alert', alert.type]"></div>
 }
