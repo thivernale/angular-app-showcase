@@ -1,4 +1,6 @@
 import { Routes } from '@angular/router';
+import { authGuard } from './auth/guards/auth-guard';
+import { authRoutes } from './auth/routes/auth-routes';
 
 import { CalendarComponent } from './calendar/calendar.component';
 import activities from './calendar/data/data.json';
@@ -11,9 +13,10 @@ export const routes: Routes = [
   { path: 'todos', loadComponent: () => TodosComponent },
   { path: 'fleet-navigator', loadComponent: () => FleetNavigatorComponent },
   { path: 'calendar', loadComponent: () => CalendarComponent, data: { 'activities': (activities as Activities) } },
+  { path: 'auth', children: authRoutes, canActivateChild: [authGuard] }
 ];
 
-type RoutingLinkOptions = Array<{
+export type RoutingLinkOptions = Array<{
   label: string;
   link: string;
   icon: string;

@@ -1,0 +1,8 @@
+<form (ngSubmit)="onSubmit()" [formGroup]="form" class="form-group mx-auto">
+  <h1>Sign in</h1>
+  <input autocomplete="off" class="form-control mb-3" formControlName="email" name="email" placeholder="Email"
+         type="email">
+  <input autocomplete="off" class="form-control mb-3" formControlName="password" name="password" placeholder="Password"
+         type="password">
+  <button [disabled]="!form.valid" class="btn btn-primary" type="submit">Login</button>
+</form>
