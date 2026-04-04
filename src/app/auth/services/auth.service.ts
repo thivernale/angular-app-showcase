@@ -8,7 +8,8 @@ import { ErrorResponse, LoginModel, RegisterModel, User, UserResponse } from '..
   providedIn: 'root',
 })
 export class AuthService {
-  currentUserSignal = signal<User | null | undefined>(undefined);
+  private readonly _currentUserSignal = signal<User | null | undefined>(undefined);
+  currentUserSignal = this._currentUserSignal.asReadonly();
   private readonly baseUrl = environment.authUrl;
   private readonly http = inject(HttpClient);
 
@@ -24,9 +25,8 @@ export class AuthService {
     ).pipe(
       map(response => response.user),
       tap(user => {
-        console.log('User registered successfully:', user);
         localStorage.setItem('token', user.token);
-        this.currentUserSignal.set(user);
+        this._currentUserSignal.set(user);
       }),
       catchError(this.handleError)
     );
@@ -41,22 +41,22 @@ export class AuthService {
       map(response => response.user),
       tap(user => {
         localStorage.setItem('token', user.token);
-        this.currentUserSignal.set(user);
+        this._currentUserSignal.set(user);
       }),
       catchError(this.handleError)
     );
   }
 
   getCurrentUser() {
-    if (localStorage.getItem('token') == null) {
-      this.currentUserSignal.set(null);
+    if (localStorage.getItem('token') === null) {
+      this._currentUserSignal.set(null);
       return of(null);
     }
 
     return this.http.get<UserResponse>(`${this.baseUrl}/api/user`).pipe(
       map(response => response.user),
       tap(user => {
-        this.currentUserSignal.set(user);
+        this._currentUserSignal.set(user);
       }),
       catchError(() => {
         this.logout();
@@ -67,16 +67,22 @@ export class AuthService {
 
   logout() {
     localStorage.removeItem('token');
-    this.currentUserSignal.set(null);
+    this._currentUserSignal.set(null);
   }
 
   private readonly handleError = (response: HttpErrorResponse) => {
     throw new Error(this.formatError(response));
-  }
+  };
 
   private formatError(response: HttpErrorResponse): string {
-    return '<ul>' + Object.entries((<ErrorResponse>response.error).errors)
-      .map(([key, messages]) => `<li>${key} ${messages.join(', ' + key + ' ')}</li>`)
-      .join("") + '</ul>';
+    const errors = (<ErrorResponse>response.error)?.errors;
+
+    if (errors && typeof errors === 'object' && !Array.isArray(errors) && Object.entries(errors).length) {
+      return '<ul>' + Object.entries(errors)
+        .map(([key, messages]) => `<li>${key} ${messages.join(', ' + key + ' ')}</li>`)
+        .join('') + '</ul>';
+    } else {
+      return response.message ?? 'An unknown error occurred';
+    }
   }
 }
