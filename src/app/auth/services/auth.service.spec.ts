@@ -130,6 +130,29 @@ describe('AuthService', () => {
       expect(thrownError!.message).toContain('email');
       expect(thrownError!.message).toContain('username');
     });
+
+    it('should format multiple messages for the same field', () => {
+      const errorResponse = { errors: { password: ['is too short', 'must include a number'] } };
+      let thrownError: Error | undefined;
+
+      service.register(registerModel).subscribe({ error: (err: Error) => (thrownError = err) });
+
+      const req = httpTesting.expectOne(`${environment.authUrl}/api/users`);
+      req.flush(errorResponse, { status: 422, statusText: 'Unprocessable Entity' });
+
+      expect(thrownError!.message).toBe('<ul><li>password is too short, password must include a number</li></ul>');
+    });
+
+    it('should handle HTTP error without errors body gracefully', () => {
+      let thrownError: unknown;
+      service.register(registerModel).subscribe({ error: (err) => (thrownError = err) });
+
+      const req = httpTesting.expectOne(`${environment.authUrl}/api/users`);
+      req.flush('Internal Server Error', { status: 500, statusText: 'Internal Server Error' });
+
+      expect(thrownError).toBeInstanceOf(Error);
+      expect((thrownError as Error).message).toContain('Internal Server Error');
+    });
   });
 
   describe('login()', () => {
@@ -206,7 +229,6 @@ describe('AuthService', () => {
 
   describe('getCurrentUser()', () => {
     it('should return null and set signal to null when no token in localStorage', () => {
-      localStorage.removeItem('token');
       let result: User | null | undefined;
 
       service.getCurrentUser().subscribe(user => (result = user));
@@ -296,7 +318,14 @@ describe('AuthService', () => {
     });
 
     it('should set currentUserSignal to null', () => {
-      service.currentUserSignal.set(mockUser);
+      // service.currentUserSignal.set(mockUser);
+      // set up current user
+      localStorage.setItem('token', 'existing-token');
+
+      service.getCurrentUser().subscribe();
+
+      const req = httpTesting.expectOne(`${environment.authUrl}/api/user`);
+      req.flush(mockUserResponse);
 
       service.logout();
 

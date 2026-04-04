@@ -1,8 +1,10 @@
-import { signal } from '@angular/core';
+import { inject, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { CanActivateFn } from '@angular/router';
-import { Mocked, vi } from 'vitest';
+import { of } from 'rxjs';
+import { vi } from 'vitest';
 import { AuthService } from '../services/auth.service';
+import { User } from '../types/user.interface';
 
 import { authGuard } from './auth-guard';
 
@@ -10,16 +12,23 @@ describe('authGuard', () => {
   const executeGuard: CanActivateFn = (...guardParameters) =>
     TestBed.runInInjectionContext(() => authGuard(...guardParameters));
 
-  // Vitest's `Mocked` utility type ensures the stub is type-safe
-  const authServiceStub: Mocked<AuthService> = {
-    //  Create a real signal to use as the mock value
-    currentUserSignal: signal(undefined),
-  } as unknown as Mocked<AuthService>;
+  const AuthServiceStub = vi.fn(class {
+    _currentUserSignal = signal<User | null | undefined>(undefined);
+    currentUserSignal = this._currentUserSignal.asReadonly();
+    getCurrentUser = vi.fn(() => {
+      let currentUser = { username: 'testuser' } as User;
+      this._currentUserSignal.set(currentUser);
+      return of(currentUser);
+    });
+    logout = vi.fn(() => {
+      this._currentUserSignal.set(null);
+    });
+  }) as unknown as { new(): AuthService };
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        { provide: AuthService, useValue: authServiceStub },
+        { provide: AuthService, useClass: AuthServiceStub },
       ],
     });
 
@@ -32,8 +41,9 @@ describe('authGuard', () => {
 
   it('should return true when currentUserSignal is null', () => {
     TestBed.runInInjectionContext(() => {
-      // Update the signal value directly
-      authServiceStub.currentUserSignal.set(null);
+      const authServiceStub = inject(AuthService);
+
+      authServiceStub.logout();
 
       const result = authGuard({} as any, {} as any);
       expect(result).toBe(true);
@@ -42,8 +52,9 @@ describe('authGuard', () => {
 
   it('should return false when currentUserSignal is not null', () => {
     TestBed.runInInjectionContext(() => {
-      // Update the signal value directly
-      authServiceStub.currentUserSignal.set({ username: 'testUser', email: '', token: '' });
+      const authServiceStub = inject(AuthService);
+
+      authServiceStub.getCurrentUser().subscribe();
 
       const result = authGuard({} as any, {} as any);
       expect(result).toBe(false);
