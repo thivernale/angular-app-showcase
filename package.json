@@ -8,7 +8,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "test:browser": "ng test --browsers=chromium",
-    "test:ci": "ng test --no-watch --no-progress --browsers=chromiumHeadless"
+    "test:ci": "ng test --no-watch --no-progress --browsers=chromiumHeadless",
+    "test:docker": "docker build -t app-showcase-test . && docker run --rm app-showcase-test"
   },
   "private": true,
   "packageManager": "npm@11.1.0",
