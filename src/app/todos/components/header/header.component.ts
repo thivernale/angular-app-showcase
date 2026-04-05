@@ -6,7 +6,7 @@ import { TodosService } from '../../services/todos.service';
   templateUrl: './header.component.html',
 })
 export class HeaderComponent {
-  protected text: string = '';
+  protected text = '';
   private readonly service = inject(TodosService);
 
   protected changeText($event: KeyboardEvent): void {

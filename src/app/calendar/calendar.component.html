@@ -31,7 +31,9 @@
                [class.today]="day.hasSame(today(), 'day')"
                [class.other-month]="!day.hasSame(startOfMonth(), 'month')"
                [class.active]="activeDay() && day.hasSame(activeDay()!, 'day')"
-               (click)="activeDay.set(day)">
+               (click)="activeDay.set(day)"
+               (keyup.enter)="activeDay.set(day)"
+               tabindex="0">
             <span class="day-number">{{ day.day }}</span>
           </div>
         }

@@ -1,5 +1,5 @@
 export const environment = {
-  production: true,
+  production: false,
   history_steps: 5,
   authUrl: 'https://api.realworld.show',
 };

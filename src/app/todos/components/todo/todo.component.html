@@ -18,9 +18,9 @@
         class="form-check-input rounded-circle p-2"
         [checked]="todo.isCompleted"
         (change)="toggleCompleted()"
-        [title]="todo.id"
+        [id]="todo.id"
       />
-      <label class="p-2 w-100 fs-5" (dblclick)="setEditId.emit(todo.id)" [ngClass]="{'text-decoration-line-through': todo.isCompleted}">
+      <label [for]="todo.id" class="p-2 w-100 fs-5" (dblclick)="setEditId.emit(todo.id)" [ngClass]="{'text-decoration-line-through': todo.isCompleted}">
         {{ todo.content }}
         @if (textComputed() !== todo.content) {
           <span class="badge badge-warning border-warning border text-secondary text-uppercase">unsaved changes</span>

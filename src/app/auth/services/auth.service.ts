@@ -75,7 +75,7 @@ export class AuthService {
   };
 
   private formatError(response: HttpErrorResponse): string {
-    const errors = (<ErrorResponse>response.error)?.errors;
+    const errors = (response.error as ErrorResponse)?.errors;
 
     if (errors && typeof errors === 'object' && !Array.isArray(errors) && Object.entries(errors).length) {
       return '<ul>' + Object.entries(errors)

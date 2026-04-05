@@ -1,4 +1,2 @@
 type Activity = string;
-export interface Activities {
-  [key: string]: Activity[];
-}
+export type Activities = Record<string, Activity[]>;

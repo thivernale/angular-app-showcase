@@ -8,7 +8,7 @@ import { Activities } from './types/activities.interface';
   styleUrl: './calendar.component.css',
 })
 export class CalendarComponent {
-  activities: any = input.required<Activities>();
+  activities = input.required<Activities>();
   activeDay: WritableSignal<DateTime|null> = signal(null);
 
   today = signal(DateTime.local()).asReadonly();

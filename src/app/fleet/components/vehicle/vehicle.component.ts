@@ -1,5 +1,5 @@
 import { NgClass } from '@angular/common';
-import { Component, inject, Input } from '@angular/core';
+import { Component, inject, input } from '@angular/core';
 import { RegionService } from '../../services/region.service';
 import { VehicleService } from '../../services/vehicle.service';
 import { Vehicle } from '../../types/vehicle';
@@ -12,13 +12,13 @@ import { Vehicle } from '../../types/vehicle';
   ]
 })
 export class VehicleComponent {
-  @Input() vehicle!: Vehicle;
+  vehicle = input.required<Vehicle>();
   private readonly vehicleService = inject(VehicleService);
   private readonly regionService = inject(RegionService);
 
   getRegions() {
     return this.regionService.getRegions()
-      .filter(l => l.id !== this.vehicle.location);
+      .filter(l => l.id !== this.vehicle().location);
   }
 
   getLocationName(id: number): string {
@@ -27,6 +27,6 @@ export class VehicleComponent {
 
   changeLocation(event: Event): void {
     const newLocationId = Number((event.target as HTMLSelectElement).value);
-    this.vehicleService.changeLocation(this.vehicle, newLocationId);
+    this.vehicleService.changeLocation(this.vehicle(), newLocationId);
   }
 }

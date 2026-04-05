@@ -16,11 +16,11 @@ export const routes: Routes = [
   { path: 'auth', children: authRoutes, canActivateChild: [authGuard] }
 ];
 
-export type RoutingLinkOptions = Array<{
+export type RoutingLinkOptions = {
   label: string;
   link: string;
   icon: string;
-}>
+}[]
 
 export const routingLinkOptions: RoutingLinkOptions = [
     {

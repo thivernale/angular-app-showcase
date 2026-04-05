@@ -13,7 +13,7 @@ export class TodosService {
   private readonly alertService = inject(AlertService);
 
   add(content: string) {
-    let updateFn = (todos: Todo[]) => [...todos, { id: this.generateId(), content, isCompleted: false }];
+    const updateFn = (todos: Todo[]) => [...todos, { id: this.generateId(), content, isCompleted: false }];
     this.updateSignal(updateFn);
 
     this.alertService.showAlert({
@@ -23,7 +23,7 @@ export class TodosService {
   }
 
   update(todo: Todo) {
-    let updateFn = (todos: Todo[]) => [...todos.map(t => t.id === todo.id ? todo : t)];
+    const updateFn = (todos: Todo[]) => [...todos.map(t => t.id === todo.id ? todo : t)];
     this.updateSignal(updateFn);
 
     this.alertService.showAlert({
@@ -33,7 +33,7 @@ export class TodosService {
   }
 
   remove(id: string) {
-    let updateFn = (todos: Todo[]) => [...todos.filter(t => t.id !== id)];
+    const updateFn = (todos: Todo[]) => [...todos.filter(t => t.id !== id)];
     this.updateSignal(updateFn);
 
     this.alertService.showAlert({
@@ -43,7 +43,7 @@ export class TodosService {
   }
 
   toggleCompleted(id: string) {
-    let updateFn = (todos: Todo[]) => [...todos.map(t => t.id === id ? { ...t, isCompleted: !t.isCompleted } : t)];
+    const updateFn = (todos: Todo[]) => [...todos.map(t => t.id === id ? { ...t, isCompleted: !t.isCompleted } : t)];
     this.updateSignal(updateFn);
 
     this.alertService.showAlert({
@@ -53,7 +53,7 @@ export class TodosService {
   }
 
   toggleAllCompleted(isCompleted: boolean) {
-    let updateFn = (todos: Todo[]) => [...todos.map(t => ({ ...t, isCompleted }))];
+    const updateFn = (todos: Todo[]) => [...todos.map(t => ({ ...t, isCompleted }))];
     this.updateSignal(updateFn);
 
     this.alertService.showAlert({

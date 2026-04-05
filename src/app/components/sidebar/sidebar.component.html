@@ -46,7 +46,7 @@
         </li>
       }
       <li class="sidenav-nav-item">
-        <a (click)="logout()" class="sidenav-nav-link">
+        <a (click)="logout()" (keyup.enter)="logout()" tabindex="0" class="sidenav-nav-link">
           <i class="sidenav-link-icon fa fa-sign-out"></i>
           @if (!isSidebarCollapsed()) {
             <span class="sidenav-link-text">Logout</span>

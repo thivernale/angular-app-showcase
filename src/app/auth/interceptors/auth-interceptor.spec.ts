@@ -4,8 +4,8 @@ import { authInterceptor } from './auth-interceptor';
 
 describe('authInterceptor', () => {
   let mockNext: Mock<HttpHandlerFn>;
-  let mockRequest: HttpRequest<any>;
-  let getItemSpy = vi.spyOn(Storage.prototype, 'getItem');
+  let mockRequest: HttpRequest<unknown>;
+  const getItemSpy = vi.spyOn(Storage.prototype, 'getItem');
 
   beforeEach(() => {
     mockNext = vi.fn();

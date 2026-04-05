@@ -15,7 +15,7 @@ describe('RegionService', () => {
   });
 
   it('should list regions', () => {
-    let regions = service.getRegions();
+    const regions = service.getRegions();
     expect(regions).not.toBeNull();
     expect(regions).toBeInstanceOf(Array);
     expect(regions.length).toEqual(5);

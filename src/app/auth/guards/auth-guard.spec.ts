@@ -1,6 +1,6 @@
 import { inject, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { CanActivateFn } from '@angular/router';
+import { ActivatedRouteSnapshot, CanActivateFn, RouterStateSnapshot } from '@angular/router';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
 import { AuthService } from '../services/auth.service';
@@ -16,14 +16,14 @@ describe('authGuard', () => {
     _currentUserSignal = signal<User | null | undefined>(undefined);
     currentUserSignal = this._currentUserSignal.asReadonly();
     getCurrentUser = vi.fn(() => {
-      let currentUser = { username: 'testuser' } as User;
+      const currentUser = { username: 'testuser' } as User;
       this._currentUserSignal.set(currentUser);
       return of(currentUser);
     });
     logout = vi.fn(() => {
       this._currentUserSignal.set(null);
     });
-  }) as unknown as { new(): AuthService };
+  }) as unknown as new() => AuthService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -45,7 +45,7 @@ describe('authGuard', () => {
 
       authServiceStub.logout();
 
-      const result = authGuard({} as any, {} as any);
+      const result = authGuard({} as ActivatedRouteSnapshot, {} as RouterStateSnapshot);
       expect(result).toBe(true);
     });
   });
@@ -56,7 +56,7 @@ describe('authGuard', () => {
 
       authServiceStub.getCurrentUser().subscribe();
 
-      const result = authGuard({} as any, {} as any);
+      const result = authGuard({} as ActivatedRouteSnapshot, {} as RouterStateSnapshot);
       expect(result).toBe(false);
     });
   });
