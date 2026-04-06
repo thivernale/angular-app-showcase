@@ -10,9 +10,9 @@ import { LogEntry } from '../../types/log-entry';
   templateUrl: './history.component.html',
 })
 export class HistoryComponent {
-  private vehicleService = inject(VehicleService);
-  private regionService = inject(RegionService);
   protected logs: LogEntry[] = [];
+  private readonly vehicleService = inject(VehicleService);
+  private readonly regionService = inject(RegionService);
 
   constructor() {
     this.vehicleService.log$.pipe(takeUntilDestroyed()).subscribe(log => {
@@ -23,7 +23,7 @@ export class HistoryComponent {
     });
   }
 
-  formatLogEntry(entry: LogEntry): string {
+  protected formatLogEntry(entry: LogEntry): string {
     return `
       ${new Date(entry.timestamp).toLocaleString()}:
       ${this.vehicleService.getVehicleName(entry.vehicle)}

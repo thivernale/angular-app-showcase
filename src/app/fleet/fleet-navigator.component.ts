@@ -14,6 +14,6 @@ import { VehicleService } from './services/vehicle.service';
   templateUrl: './fleet-navigator.component.html',
 })
 export class FleetNavigatorComponent {
-  private vehicleService = inject(VehicleService);
+  private readonly vehicleService = inject(VehicleService);
   vehicles$ = this.vehicleService.vehicle$;
 }

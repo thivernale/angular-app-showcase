@@ -10,10 +10,10 @@ import { Vehicle } from '../types/vehicle';
 export class VehicleService {
   private vehicles: Vehicle[] = [...initialData];
 
-  private logSubject = new Subject<LogEntry>();
+  private readonly logSubject = new Subject<LogEntry>();
   log$ = this.logSubject.asObservable();
 
-  private vehicleSubject = new BehaviorSubject<Vehicle[]>(this.vehicles);
+  private readonly vehicleSubject = new BehaviorSubject<Vehicle[]>(this.vehicles);
   vehicle$ = this.vehicleSubject.asObservable();
 
   getVehicleName(id: number) {
