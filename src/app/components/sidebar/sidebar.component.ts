@@ -5,13 +5,15 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 import { routingLinkOptions } from '../../app.routes';
 import { authRoutingLinkOptions } from '../../auth/routes/auth-routes';
 import { AuthService } from '../../auth/services/auth.service';
+import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 
 @Component({
   selector: 'app-sidebar',
   imports: [
     RouterLink,
     RouterLinkActive,
-    NgClass
+    NgClass,
+    ClickOutsideDirective
   ],
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.css',
@@ -33,5 +35,11 @@ export class SidebarComponent {
 
   protected logout() {
     this.authService.logout();
+  }
+
+  protected collapseSidebar() {
+    if (!this.isSidebarCollapsed()) {
+      this.toggleSidebarCollapsed.emit(true);
+    }
   }
 }

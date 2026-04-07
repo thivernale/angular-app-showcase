@@ -1,4 +1,8 @@
-<aside [ngClass]="{'sidenav-collapsed': isSidebarCollapsed()}" class="sidenav">
+<aside
+  (clickOutsideRef)="collapseSidebar()"
+  [ngClass]="{'sidenav-collapsed': isSidebarCollapsed()}"
+  appClickOutside
+  class="sidenav">
   <div class="logo-container">
     <button (click)="toggleSidebar()" class="logo">
       <i class="fa fa-bars"></i>
@@ -46,7 +50,7 @@
         </li>
       }
       <li class="sidenav-nav-item">
-        <a (click)="logout()" (keyup.enter)="logout()" tabindex="0" class="sidenav-nav-link">
+        <a (click)="logout()" (keyup.enter)="logout()" class="sidenav-nav-link" tabindex="0">
           <i class="sidenav-link-icon fa fa-sign-out"></i>
           @if (!isSidebarCollapsed()) {
             <span class="sidenav-link-text">Logout</span>
