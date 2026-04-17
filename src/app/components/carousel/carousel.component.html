@@ -1,0 +1,22 @@
+<div class="slider">
+  <div class="arrow left" (click)="goToPrev()" (keydown)="goToPrev()" tabindex="0">&langle;</div>
+  <div class="arrow right" (click)="goToNext()" (keydown)="goToNext()" tabindex="0">&rangle;</div>
+  <div class="slides-overflow">
+    <div class="slides-container" [ngStyle]="calcContainerStyles()">
+      @for (image of images(); track $index) {
+        <div class="slide" [ngStyle]="calcImageStyle(image)"></div>
+      }
+    </div>
+  </div>
+  <div class="dots-container">
+    @for (_ of images(); track $index) {
+      <div
+        class="dot"
+        [ngClass]="{'active': $index === currentIndex()}"
+        (click)="goToImage($index)"
+        (keydown)="goToImage($index)">
+        ●
+      </div>
+    }
+  </div>
+</div>
