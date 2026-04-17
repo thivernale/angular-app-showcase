@@ -23,11 +23,8 @@ describe('ImageService', () => {
 
     TestBed.tick(); // Triggers the effect (fires the HTTP request)
 
-    // Use match instead of expectOne to capture the duplicates
-    const requests = mockBackend.match(service.apiUrl);
-    expect(requests.length).toBe(2);
+    const firstRequest = mockBackend.expectOne(service.apiUrl);
 
-    const firstRequest = requests[0];
     expect(firstRequest.request.method).toBe('GET');
     firstRequest.flush([{ id: '0', author: 'Unknown Author', download_url: 'https://example.com/image1.jpg' }]);
 
@@ -37,9 +34,8 @@ describe('ImageService', () => {
     await Promise.resolve();
 
     expect(service.httpResourceRef.value()).toEqual([{
-      id: '0',
-      author: 'Unknown Author',
-      download_url: 'https://example.com/image1.jpg'
+      alt: '0 by Unknown Author',
+      src: 'https://example.com/image1.jpg'
     }]);
 
     mockBackend.verify();
