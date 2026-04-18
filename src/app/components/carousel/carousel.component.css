@@ -64,3 +64,25 @@
 .dot.active {
   color: #000;
 }
+
+.autoplay-toggle {
+  position: absolute;
+  bottom: 36px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 1;
+  user-select: none;
+  transition: opacity 0.2s;
+}
+
+.autoplay-toggle:hover {
+  opacity: 0.7;
+}
+
+.autoplay-toggle.paused {
+  opacity: 0.5;
+}

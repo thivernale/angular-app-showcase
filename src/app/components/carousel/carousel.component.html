@@ -8,6 +8,13 @@
       }
     </div>
   </div>
+  <button
+    class="autoplay-toggle"
+    [ngClass]="{'paused': !autoplay()}"
+    (click)="toggleAutoplay()"
+    [attr.aria-label]="autoplay() ? 'Pause autoplay' : 'Resume autoplay'">
+    <i class="fa" [ngClass]="autoplay() ? 'fa-pause' : 'fa-play'"></i>
+  </button>
   <div class="dots-container">
     @for (_ of images(); track $index) {
       <div
