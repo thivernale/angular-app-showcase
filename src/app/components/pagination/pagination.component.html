@@ -1,0 +1,19 @@
+@if (total() > 0) {
+  <ul class="pagination">
+    @if (currentPage() > 1 + numPagesBeforeAfter) {
+      <li class="page-item">
+        <a class="page-link" (click)="pageChange.emit(1)">&laquo;</a>
+      </li>
+    }
+    @for (page of pages(); track $index) {
+      <li class="page-item" [ngClass]="{active: page === currentPage()}">
+        <a class="page-link" (click)="pageChange.emit(page)">{{ page }}</a>
+      </li>
+    }
+    @if (currentPage() < totalPages() - numPagesBeforeAfter) {
+      <li class="page-item">
+        <a class="page-link" (click)="pageChange.emit(totalPages())">&raquo;</a>
+      </li>
+    }
+  </ul>
+}
