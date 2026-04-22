@@ -1,0 +1,116 @@
+<div class="d-flex flex-column gap-3">
+  <!-- Endpoint toggle -->
+  <div class="btn-group" role="group">
+    @for (type of SEARCH_TYPES; track type) {
+      <button type="button" class="btn btn-outline-secondary"
+              [class.active]="searchType() === type"
+              (click)="setSearchType(type)">{{ searchTypeLabels[type] }}
+      </button>
+    }
+  </div>
+
+  <!-- Filter form -->
+  <form (ngSubmit)="onSubmit()" [formGroup]="form">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center"
+           role="button" (click)="toggleFilters()">
+        <span>Filters</span>
+        <i class="fa" [class.fa-chevron-down]="!filtersExpanded()" [class.fa-chevron-up]="filtersExpanded()"></i>
+      </div>
+      @if (filtersExpanded()) {
+        <div class="card-body">
+          <div class="row">
+            <div class="col">
+
+              <div class="row g-3 mb-3">
+                <!-- Free text search -->
+                <div class="col-12">
+                  <label class="form-label" for="searchText">Search</label>
+                  <input id="searchText" autocomplete="off" class="form-control" formControlName="searchText"
+                         placeholder="Keywords...">
+                </div>
+              </div>
+
+              <!-- Date range: everything only -->
+              @if (!isTopHeadlines()) {
+                <div class="row g-3 mb-3">
+                  <div class="col-md-6">
+                    <label class="form-label" for="from">From</label>
+                    <input id="from" type="date" class="form-control" formControlName="from" [max]="today">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="to">To</label>
+                    <input id="to" type="date" class="form-control" formControlName="to" [max]="today">
+                  </div>
+                </div>
+              }
+
+              <div class="row g-3 mb-3">
+                <!-- Language -->
+                <div class="col-md-4">
+                  <label class="form-label" for="language">Language</label>
+                  <select id="language" class="form-select" formControlName="language">
+                    <option value="">Any</option>
+                    @for (lang of LANGUAGES; track lang) {
+                      <option [value]="lang">{{ lang }}</option>
+                    }
+                  </select>
+                </div>
+
+                <!-- Category / Country: top-headlines only -->
+                @if (isTopHeadlines()) {
+                  <div class="col-md-4">
+                    <label class="form-label" for="category">Category</label>
+                    <select id="category" class="form-select" formControlName="category">
+                      <option value="">Any</option>
+                      @for (cat of CATEGORIES; track cat) {
+                        <option [value]="cat">{{ cat }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label" for="country">Country</label>
+                    <select id="country" class="form-select" formControlName="country">
+                      <option value="">Any</option>
+                      @for (country of COUNTRIES; track country) {
+                        <option [value]="country">{{ country }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+
+                <!-- Sort by: everything only -->
+                @if (!isTopHeadlines()) {
+                  <div class="col-md-4">
+                    <label class="form-label" for="sortBy">Sort by</label>
+                    <select id="sortBy" class="form-select" formControlName="sortBy">
+                      <option value="">Default</option>
+                      @for (s of SORT_BY; track s) {
+                        <option [value]="s">{{ s }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Sources -->
+            <div class="col-md-4">
+              <label class="form-label" for="sources">Sources</label>
+              <select id="sources" class="form-select" formControlName="sources" multiple size="4">
+                @for (src of SOURCE_NAMES; track src) {
+                  <option [value]="src">{{ src }}</option>
+                }
+              </select>
+              <div class="form-text">Hold Ctrl/Cmd to select multiple. Selecting sources disables category/country.
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+      <div class="card-footer">
+        <button type="submit" class="btn btn-secondary">Search</button>
+      </div>
+    </div>
+  </form>
+</div>

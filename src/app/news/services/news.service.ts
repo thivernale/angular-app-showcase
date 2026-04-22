@@ -3,7 +3,6 @@ import { inject, Injectable } from '@angular/core';
 import { catchError, Observable, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Article, ArticlesResponse, SearchParams, TopHeadlinesParams } from '../types/article.interface';
-import { NEWS_API_KEY } from './api-key';
 import { articles } from './tmp-data.json';
 
 @Injectable({
@@ -28,7 +27,7 @@ export class NewsService {
   }
 
   private buildParams(params: SearchParams): HttpParams {
-    let p = new HttpParams().set('apiKey', NEWS_API_KEY).set('pageSize', params.pageSize).set('page', params.page);
+    let p = new HttpParams().set('apiKey', environment.newsApiKey).set('pageSize', params.pageSize).set('page', params.page);
     if (params.q) p = p.set('q', params.q);
     if (params.from) p = p.set('from', params.from);
     if (params.to) p = p.set('to', params.to);
