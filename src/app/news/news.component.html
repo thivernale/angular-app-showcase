@@ -1,0 +1,39 @@
+<div class="container py-4 gap-2 d-flex flex-column col-xl-8 mx-auto">
+  @let newsResult = newsSignal();
+  <h1 class="h1 font-monospace text-center">News {{ newsResult.articles.length }} of {{ newsResult.totalResults }}</h1>
+  <form (ngSubmit)="onSubmit()" [formGroup]="form" class="form-group">
+    <input autocomplete="off" class="form-control" formControlName="searchText" name="search-text"
+           placeholder="Search...">
+  </form>
+  @if (newsResult.articles.length === 0) {
+    <div class="alert alert-info">No news found</div>
+  }
+
+  <app-pagination
+    class="text-center"
+    [total]="newsResult.totalResults"
+    [limit]="searchParamsSignal().pageSize!"
+    [currentPage]="searchParamsSignal().page!"
+    (pageChange)="onPageChange($event)"/>
+
+  @for (article of newsResult.articles; track $index) {
+    <div class="card shadow">
+      <!--      <img [ngSrc]="article.urlToImage" fill class="card-img-top" alt="{{article.title}}">-->
+      <div class="card-body">
+        <a [href]="article.url" target="_blank" class="text-black">
+          <h5 class="card-title">{{ article.title }}</h5>
+        </a>
+        <div class="card-subtitle my-3 text-muted">
+          {{ article.description }}
+        </div>
+        <div class="card-text">
+          <div class="text-secondary fst-italic mb-3">
+            Source: {{ article.source.name }}, Published on {{ article.publishedAt | date : 'short' }} by
+            <i class="fa fa-user"></i> {{ article.author ?? 'Unknown' }}
+          </div>
+          {{ article.content }}
+        </div>
+      </div>
+    </div>
+  }
+</div>

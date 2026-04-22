@@ -8,12 +8,14 @@ import activities from './calendar/data/data.json';
 import { Activities } from './calendar/types/activities.interface';
 import { FleetNavigatorComponent } from './fleet/fleet-navigator.component';
 import { GalleryComponent } from './gallery/gallery.component';
+import { NewsComponent } from './news/news.component';
 import { TodosComponent } from './todos/todos.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'todos', pathMatch: 'full' },
   { path: 'todos', loadComponent: () => TodosComponent },
   { path: 'articles/**', loadComponent: () => ArticlesComponent },
+  { path: 'news', loadComponent: () => NewsComponent },
   { path: 'fleet-navigator', loadComponent: () => FleetNavigatorComponent },
   { path: 'calendar', loadComponent: () => CalendarComponent, data: { 'activities': (activities as Activities) } },
   { path: 'gallery', loadComponent: () => GalleryComponent },
@@ -32,6 +34,9 @@ export const routingLinkOptions: RoutingLinkOptions = [
     },
     {
       label: 'Articles', link: 'articles', icon: 'fa-book'
+    },
+    {
+      label: 'News', link: 'news', icon: 'fa-newspaper'
     },
     {
       label: 'Fleet Navigator', link: 'fleet-navigator', icon: 'fa-automobile'
