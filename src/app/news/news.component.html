@@ -1,39 +1,176 @@
-<div class="container py-4 gap-2 d-flex flex-column col-xl-8 mx-auto">
-  @let newsResult = newsSignal();
-  <h1 class="h1 font-monospace text-center">News {{ newsResult.articles.length }} of {{ newsResult.totalResults }}</h1>
-  <form (ngSubmit)="onSubmit()" [formGroup]="form" class="form-group">
-    <input autocomplete="off" class="form-control" formControlName="searchText" name="search-text"
-           placeholder="Search...">
-  </form>
-  @if (newsResult.articles.length === 0) {
-    <div class="alert alert-info">No news found</div>
-  }
+<div class="container py-4 col-xl-8 mx-auto d-flex flex-column gap-3">
+  <h1 class="h1 font-monospace text-center">News</h1>
 
-  <app-pagination
-    class="text-center"
-    [total]="newsResult.totalResults"
-    [limit]="searchParamsSignal().pageSize!"
-    [currentPage]="searchParamsSignal().page!"
-    (pageChange)="onPageChange($event)"/>
+  <!-- Endpoint toggle -->
+  <div class="btn-group" role="group">
+    @for (type of SEARCH_TYPES; track type) {
+      <button type="button" class="btn btn-outline-dark"
+              [class.active]="searchType() === type"
+              (click)="setSearchType(type)">{{ searchTypeLabels[type] }}
+      </button>
+    }
+  </div>
 
-  @for (article of newsResult.articles; track $index) {
-    <div class="card shadow">
-      <!--      <img [ngSrc]="article.urlToImage" fill class="card-img-top" alt="{{article.title}}">-->
-      <div class="card-body">
-        <a [href]="article.url" target="_blank" class="text-black">
-          <h5 class="card-title">{{ article.title }}</h5>
-        </a>
-        <div class="card-subtitle my-3 text-muted">
-          {{ article.description }}
-        </div>
-        <div class="card-text">
-          <div class="text-secondary fst-italic mb-3">
-            Source: {{ article.source.name }}, Published on {{ article.publishedAt | date : 'short' }} by
-            <i class="fa fa-user"></i> {{ article.author ?? 'Unknown' }}
+  <!-- Filter form -->
+  <form (ngSubmit)="onSubmit()" [formGroup]="form">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center"
+           role="button" (click)="toggleFilters()">
+        <span>Filters</span>
+        <i class="fa" [class.fa-chevron-down]="!filtersExpanded()" [class.fa-chevron-up]="filtersExpanded()"></i>
+      </div>
+      @if (filtersExpanded()) {
+        <div class="card-body">
+          <div class="row g-3">
+            <!-- Free text search -->
+            <div class="col-12">
+              <label class="form-label" for="searchText">Search</label>
+              <input id="searchText" autocomplete="off" class="form-control" formControlName="searchText" placeholder="Keywords...">
+            </div>
+
+            <!-- Date range: everything only -->
+            @if (!isTopHeadlines()) {
+              <div class="col-md-6">
+                <label class="form-label" for="from">From</label>
+                <input id="from" type="date" class="form-control" formControlName="from" [max]="today">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="to">To</label>
+                <input id="to" type="date" class="form-control" formControlName="to" [max]="today">
+              </div>
+            }
+
+            <!-- Language -->
+            <div class="col-md-4">
+              <label class="form-label" for="language">Language</label>
+              <select id="language" class="form-select" formControlName="language">
+                <option value="">Any</option>
+                @for (lang of LANGUAGES; track lang) {
+                  <option [value]="lang">{{ lang }}</option>
+                }
+              </select>
+            </div>
+
+            <!-- Sort by: everything only -->
+            @if (!isTopHeadlines()) {
+              <div class="col-md-4">
+                <label class="form-label" for="sortBy">Sort by</label>
+                <select id="sortBy" class="form-select" formControlName="sortBy">
+                  <option value="">Default</option>
+                  @for (s of SORT_BY; track s) {
+                    <option [value]="s">{{ s }}</option>
+                  }
+                </select>
+              </div>
+            }
+
+            <!-- Sources -->
+            <div class="col-12">
+              <label class="form-label" for="sources">Sources</label>
+              <select id="sources" class="form-select" formControlName="sources" multiple size="4">
+                @for (src of SOURCE_NAMES; track src) {
+                  <option [value]="src">{{ src }}</option>
+                }
+              </select>
+              <div class="form-text">Hold Ctrl/Cmd to select multiple. Selecting sources disables category/country.</div>
+            </div>
+
+            <!-- Category / Country: top-headlines only -->
+            @if (isTopHeadlines()) {
+              <div class="col-md-4">
+                <label class="form-label" for="category">Category</label>
+                <select id="category" class="form-select" formControlName="category">
+                  <option value="">Any</option>
+                  @for (cat of CATEGORIES; track cat) {
+                    <option [value]="cat">{{ cat }}</option>
+                  }
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="country">Country</label>
+                <select id="country" class="form-select" formControlName="country">
+                  <option value="">Any</option>
+                  @for (country of COUNTRIES; track country) {
+                    <option [value]="country">{{ country }}</option>
+                  }
+                </select>
+              </div>
+            }
           </div>
-          {{ article.content }}
         </div>
+      }
+      <div class="card-footer">
+        <button type="submit" class="btn btn-dark">Search</button>
       </div>
     </div>
+  </form>
+
+  @let result = newsSignal();
+
+  <!-- Error -->
+  @if (result.state === 'error') {
+    <div class="alert"
+         [class.alert-warning]="result.code === 'rateLimited'"
+         [class.alert-danger]="result.code !== 'rateLimited'">
+      @if (result.code === 'rateLimited') {
+        <strong>Rate limit exceeded.</strong>
+      } @else if (result.code === 'parametersMissing') {
+        <strong>Missing required filter.</strong>
+      } @else {
+        <strong>Error ({{ result.code }}):</strong>
+      }
+      {{ result.message }}
+    </div>
+  }
+
+  <!-- Loading -->
+  @if (result.state === 'loading') {
+    <div class="text-center py-4">
+      <div class="spinner-border text-dark" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+  }
+
+  <!-- Results -->
+  @if (result.state === 'ok') {
+    @let data = result.data;
+    <p class="text-muted mb-0">{{ data.articles.length }} of {{ data.totalResults }} articles</p>
+
+    @if (data.articles.length === 0) {
+      <div class="alert alert-info">No articles found. Try adjusting your filters.</div>
+    }
+
+    <app-pagination
+      class="text-center"
+      [total]="data.totalResults"
+      [limit]="pageSize()"
+      [currentPage]="currentPage()"
+      (pageChange)="onPageChange($event)"/>
+
+    @for (article of data.articles; track article.url) {
+      <div class="card shadow">
+        @if (article.urlToImage) {
+          <div style="position: relative; aspect-ratio: 16/9;">
+            <img [ngSrc]="article.urlToImage" fill class="card-img-top object-fit-cover" [alt]="article.title">
+          </div>
+        }
+        <div class="card-body">
+          <a [href]="article.url" target="_blank" class="text-black">
+            <h5 class="card-title">{{ article.title }}</h5>
+          </a>
+          <div class="card-subtitle my-3 text-muted">
+            {{ article.description }}
+          </div>
+          <div class="card-text">
+            <div class="text-secondary fst-italic mb-3">
+              Source: {{ article.source.name }}, Published on {{ article.publishedAt | date : 'short' }} by
+              <i class="fa fa-user"></i> {{ article.author ?? 'Unknown' }}
+            </div>
+            {{ article.content }}
+          </div>
+        </div>
+      </div>
+    }
   }
 </div>

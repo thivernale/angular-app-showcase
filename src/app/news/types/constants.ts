@@ -18,10 +18,8 @@ export type Country = typeof COUNTRIES[number];
 export const SOURCE_NAMES = ['abc-news', 'al-jazeera-english', 'associated-press', 'bbc-news', 'business-insider', 'buzzfeed', 'cnn', 'espn', 'fortune', 'google-news', 'msnbc', 'mtv-news', 'new-york-magazine', 'recode', 'techcrunch', 'the-huffington-post', 'the-wall-street-journal', 'the-washington-post', 'time', 'usa-today'] as const;
 export type SourceName = typeof SOURCE_NAMES[number];
 
-export const SEARCH_TYPES = {
-  EVERYTHING: 'everything',
-  TOP_HEADLINES: 'top-headlines',
-} as const;
+export const SEARCH_TYPES = ['everything', 'top-headlines'] as const;
+export type SearchType = typeof SEARCH_TYPES[number];
 
 export const SEARCH_IN = ['title', 'description', 'content'] as const;
 export type SearchIn = typeof SEARCH_IN[number];

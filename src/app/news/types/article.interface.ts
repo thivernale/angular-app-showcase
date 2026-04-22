@@ -1,3 +1,5 @@
+import { Category, Country, Language, SortBy } from './constants';
+
 export interface Article {
   source: {
     id: string,
@@ -7,36 +9,36 @@ export interface Article {
   title: string;
   description: string;
   url: string;
-  urlToImage: string;
+  urlToImage: string | null;
   publishedAt: string;
   content: string;
 }
 
 export interface ArticlesResponse {
-  status: string;
+  status: 'ok' | 'error';
   totalResults: number;
   articles: Article[];
-}
-
-export interface ErrorResponse {
-  code: string;
-  status: string;
-  message: string;
+  code?: string;
+  message?: string;
 }
 
 export interface SearchParams {
   q?: string;
   from?: string;
   to?: string;
-  language?: string;
+  language?: Language;
   sources?: string;
-  sortBy?: string;
+  sortBy?: SortBy;
   page: number;
   pageSize: number;
 }
 
 export interface TopHeadlinesParams extends SearchParams {
-  // supported only by top-headlines endpoint
-  category?: string;
-  country?: string;
+  category?: Category;
+  country?: Country;
 }
+
+export type NewsResult =
+  | { state: 'loading' }
+  | { state: 'ok'; data: ArticlesResponse }
+  | { state: 'error'; code: string; message: string };

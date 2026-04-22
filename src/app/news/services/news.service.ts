@@ -1,8 +1,8 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
-import { Article, ArticlesResponse, SearchParams } from '../types/article.interface';
-import { SEARCH_TYPES } from '../types/constants';
+import { catchError, Observable, of } from 'rxjs';
+import { environment } from '../../../environments/environment';
+import { Article, ArticlesResponse, SearchParams, TopHeadlinesParams } from '../types/article.interface';
 import { NEWS_API_KEY } from './api-key';
 import { articles } from './tmp-data.json';
 
@@ -10,42 +10,55 @@ import { articles } from './tmp-data.json';
   providedIn: 'root',
 })
 export class NewsService {
-  private readonly baseUrl = `https://newsapi.org/v2/${SEARCH_TYPES.EVERYTHING}?apiKey=${NEWS_API_KEY}`;
   private readonly http = inject(HttpClient);
+  private readonly baseUrl = '/newsapi/v2';
 
-  search(searchParams: SearchParams): Observable<ArticlesResponse> {
-    const cleanEntries = Object.entries(searchParams).filter(([_, value]) => {
-      return value !== null && value !== undefined && value !== '';
-    });
-    const queryString = Object.entries(cleanEntries).length ?
-      '&' + new URLSearchParams(Object.fromEntries(cleanEntries)).toString() : '';
+  searchEverything(params: SearchParams): Observable<ArticlesResponse> {
+    if (environment.useMockNews) return this.mockResponse(params);
+    return this.http
+      .get<ArticlesResponse>(`${this.baseUrl}/everything`, { params: this.buildParams(params) })
+      .pipe(catchError(err => of(this.errorResponse(err))));
+  }
 
-    console.log(queryString);
+  searchTopHeadlines(params: TopHeadlinesParams): Observable<ArticlesResponse> {
+    if (environment.useMockNews) return this.mockResponse(params);
+    return this.http
+      .get<ArticlesResponse>(`${this.baseUrl}/top-headlines`, { params: this.buildParams(params) })
+      .pipe(catchError(err => of(this.errorResponse(err))));
+  }
 
-    // use tmp data for now
-    const articles2 = [...articles] as Article[];
-    let sliceStart = (searchParams.page - 1) * (searchParams.pageSize);
-    return of({
-      articles: articles2.slice(sliceStart, sliceStart + 10),
-      totalResults: articles2.length,
+  private buildParams(params: SearchParams): HttpParams {
+    let p = new HttpParams().set('apiKey', NEWS_API_KEY).set('pageSize', params.pageSize).set('page', params.page);
+    if (params.q) p = p.set('q', params.q);
+    if (params.from) p = p.set('from', params.from);
+    if (params.to) p = p.set('to', params.to);
+    if (params.language) p = p.set('language', params.language);
+    if (params.sources) p = p.set('sources', params.sources);
+    if (params.sortBy) p = p.set('sortBy', params.sortBy);
+    const hp = params as TopHeadlinesParams;
+    if (hp.category) p = p.set('category', hp.category);
+    if (hp.country) p = p.set('country', hp.country);
+    return p;
+  }
+
+  private errorResponse(err: HttpErrorResponse): ArticlesResponse {
+    const body = err.error as Partial<ArticlesResponse>;
+    return {
       status: 'error',
+      totalResults: 0,
+      articles: [],
+      code: body?.code ?? String(err.status),
+      message: body?.message ?? err.message,
+    };
+  }
+
+  private mockResponse(params: SearchParams): Observable<ArticlesResponse> {
+    const allArticles = [...articles] as Article[];
+    const sliceStart = (params.page - 1) * params.pageSize;
+    return of({
+      articles: allArticles.slice(sliceStart, sliceStart + params.pageSize),
+      totalResults: allArticles.length,
+      status: 'ok' as const,
     });
-    /*
-    return this.http.get<ArticlesResponse>(`${this.baseUrl}${queryString}`).pipe(
-      catchError((err, caught) => {
-        console.error('Error fetching news:', err);
-        if (err instanceof HttpErrorResponse) {
-          console.error('Error details:', err.error);
-        }
-        if (err.status === 429) {
-        }
-        return of({
-          articles: [] as Article[],
-          totalResults: 0,
-          status: 'error',
-        });
-      })
-    );
-        */
   }
 }
