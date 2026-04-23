@@ -2,7 +2,14 @@ import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http'
 import { inject, Injectable } from '@angular/core';
 import { catchError, Observable, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Article, ArticlesResponse, SearchParams, TopHeadlinesParams } from '../types/article.interface';
+import {
+  Article,
+  ArticlesResponse,
+  SearchParams,
+  SourceFilterParams,
+  TopHeadlinesParams
+} from '../types/article.interface';
+import sources from './sources.json';
 import { articles } from './tmp-data.json';
 
 @Injectable({
@@ -57,5 +64,14 @@ export class NewsService {
       totalResults: allArticles.length,
       status: 'ok' as const,
     });
+  }
+
+  public getSources(params: SourceFilterParams) {
+    return sources
+      .filter(s =>
+        (params.language ? s.language === params.language : true) &&
+        (params.category ? s.category === params.category : true) &&
+        (params.country ? s.country === params.country : true))
+      .map(s => s.id);
   }
 }

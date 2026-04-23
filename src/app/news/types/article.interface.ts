@@ -42,3 +42,5 @@ export type NewsResult =
   | { state: 'loading' }
   | { state: 'ok'; data: ArticlesResponse }
   | { state: 'error'; code: string; message: string };
+
+export type SourceFilterParams = Pick<TopHeadlinesParams, 'language' | 'category' | 'country'>;

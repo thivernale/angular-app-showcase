@@ -7,7 +7,7 @@ import { PaginationComponent } from '../components/pagination/pagination.compone
 import { FilterSubmitEvent, NewsFilterFormComponent } from './components/filter-form/news-filter-form.component';
 import { NewsService } from './services/news.service';
 import { ArticlesResponse, NewsResult, SearchParams, TopHeadlinesParams } from './types/article.interface';
-import { SearchType, SOURCE_NAMES } from './types/constants';
+import { INITIAL_SEARCH_QUERY, SearchType } from './types/constants';
 
 function toNewsResult(r: ArticlesResponse): NewsResult {
   if (r.status === 'error') {
@@ -28,7 +28,7 @@ export class NewsComponent {
   private readonly searchType = signal<SearchType>('everything');
 
   private readonly searchParamsSignal = signal<SearchParams>({
-    sources: SOURCE_NAMES.join(','),
+    q: INITIAL_SEARCH_QUERY,
     page: 1,
     pageSize: 10,
   });
@@ -52,7 +52,7 @@ export class NewsComponent {
             map(toNewsResult),
             // Add 1000ms delay to simulate a slow network
             // delay(1000),
-            // This emits BEFORE the searchEverything request completes,
+            // This emits BEFORE the search request completes,
             // every time querySignal changes.
             startWith({ state: 'loading' } as NewsResult),
           )

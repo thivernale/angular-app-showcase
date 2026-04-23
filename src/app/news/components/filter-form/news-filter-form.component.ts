@@ -2,20 +2,21 @@ import { Component, computed, inject, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Params } from '@angular/router';
-import { TopHeadlinesParams } from '../../types/article.interface';
+import { merge } from 'rxjs';
+import { NewsService } from '../../services/news.service';
+import { SourceFilterParams, TopHeadlinesParams } from '../../types/article.interface';
 import {
   CATEGORIES,
   Category,
   COUNTRIES,
   Country,
+  INITIAL_SEARCH_QUERY,
   Language,
   LANGUAGES,
   SEARCH_TYPES,
   SearchType,
   SORT_BY,
   SortBy,
-  SOURCE_NAMES,
-  SourceName,
 } from '../../types/constants';
 
 function todayString(): string {
@@ -32,13 +33,13 @@ export type FilterSubmitEvent = { type: SearchType } & Partial<TopHeadlinesParam
 export class NewsFilterFormComponent {
   private readonly fb = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
+  private readonly newsService = inject(NewsService);
 
   protected readonly today = todayString();
   protected readonly SEARCH_TYPES = SEARCH_TYPES;
   protected readonly LANGUAGES = LANGUAGES;
   protected readonly CATEGORIES = CATEGORIES;
   protected readonly COUNTRIES = COUNTRIES;
-  protected readonly SOURCE_NAMES = SOURCE_NAMES;
   protected readonly SORT_BY = SORT_BY;
 
   protected readonly searchTypeLabels: Record<SearchType, string> = {
@@ -51,11 +52,11 @@ export class NewsFilterFormComponent {
   protected readonly filtersExpanded = signal(true);
 
   protected readonly form = this.fb.nonNullable.group({
-    searchText: [''],
+    searchText: [INITIAL_SEARCH_QUERY],
     from: [todayString()],
     to: [''],
     language: ['' as Language],
-    sources: [[...SOURCE_NAMES] as SourceName[]],
+    sources: [[] as string[]],
     sortBy: ['' as SortBy | ''],
     category: ['' as Category | '',],
     country: ['' as Country | ''],
@@ -63,11 +64,24 @@ export class NewsFilterFormComponent {
 
   readonly submitted = output<FilterSubmitEvent>();
 
+  private readonly sourceFilterParams = signal<SourceFilterParams>({});
+
+  protected readonly availableSources = computed(() => this.newsService.getSources(this.sourceFilterParams()));
+
   constructor() {
     this.form.controls.sources.valueChanges.pipe(takeUntilDestroyed()).subscribe(sources => {
       this.syncSourcesExclusivity(sources);
+      this.updateSourceFilterParams();
     });
+
+    merge(
+      this.form.controls.language.valueChanges,
+      this.form.controls.category.valueChanges,
+      this.form.controls.country.valueChanges,
+    ).pipe(takeUntilDestroyed()).subscribe(() => this.updateSourceFilterParams());
+
     this.syncSourcesExclusivity(this.form.controls.sources.getRawValue());
+    this.updateSourceFilterParams();
 
     const snapshot = this.route.snapshot.queryParams;
     if (Object.keys(snapshot).length) {
@@ -75,7 +89,7 @@ export class NewsFilterFormComponent {
     }
   }
 
-  private syncSourcesExclusivity(sources: SourceName[]): void {
+  private syncSourcesExclusivity(sources: string[]): void {
     if (sources.length > 0) {
       this.form.controls.category.disable();
       this.form.controls.country.disable();
@@ -85,9 +99,24 @@ export class NewsFilterFormComponent {
     }
   }
 
+  private updateSourceFilterParams(): void {
+    const { language, category, country, sources } = this.form.getRawValue();
+    this.sourceFilterParams.set({
+      language: language || undefined,
+      category: category || undefined,
+      country: country || undefined,
+    });
+    const available = this.availableSources();
+    const valid = sources.filter(s => available.includes(s));
+    if (valid.length !== sources.length) {
+      this.form.controls.sources.setValue(valid, { emitEvent: false });
+      this.syncSourcesExclusivity(valid);
+    }
+  }
+
   private populateFromQueryParams(params: Params): void {
     const sources = params['sources']
-      ? (params['sources'] as string).split(',') as SourceName[]
+      ? (params['sources'] as string).split(',')
       : [];
     if (params['searchType'] === 'top-headlines') {
       this.searchType.set('top-headlines');

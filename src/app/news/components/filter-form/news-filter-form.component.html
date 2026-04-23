@@ -98,7 +98,7 @@
             <div class="col-md-4">
               <label class="form-label" for="sources">Sources</label>
               <select id="sources" class="form-select" formControlName="sources" multiple size="4">
-                @for (src of SOURCE_NAMES; track src) {
+                @for (src of availableSources(); track src) {
                   <option [value]="src">{{ src }}</option>
                 }
               </select>
