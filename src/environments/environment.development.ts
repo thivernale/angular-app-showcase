@@ -3,5 +3,4 @@ export const environment = {
   history_steps: 5,
   authUrl: 'https://api.realworld.show',
   newsApiKey: '',
-  useMockNews: true,
 };

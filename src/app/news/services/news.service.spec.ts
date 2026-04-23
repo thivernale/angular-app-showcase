@@ -1,7 +1,6 @@
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { environment } from '../../../environments/environment';
 import { NewsService } from './news.service';
 
 describe('NewsService', () => {
@@ -16,47 +15,34 @@ describe('NewsService', () => {
 
   afterEach(() => {
     http.verify();
-    environment.useMockNews = true;
   });
 
   describe('mock mode', () => {
-    beforeEach(() => { environment.useMockNews = true; });
-
-    it('searchEverything returns ok status with articles', () => {
+    it('mockResponse returns ok status with articles', () => {
       let result: any;
-      service.searchEverything({ page: 1, pageSize: 10 }).subscribe(r => (result = r));
+      service.mockResponse({ page: 1, pageSize: 10 }).subscribe(r => (result = r));
       expect(result.status).toBe('ok');
       expect(result.articles.length).toBeGreaterThan(0);
       expect(result.totalResults).toBeGreaterThan(0);
     });
 
-    it('searchEverything paginates: page 2 returns different articles than page 1', () => {
+    it('mockResponse paginates: page 2 returns different articles than page 1', () => {
       let page1: any;
       let page2: any;
-      service.searchEverything({ page: 1, pageSize: 3 }).subscribe(r => (page1 = r));
-      service.searchEverything({ page: 2, pageSize: 3 }).subscribe(r => (page2 = r));
+      service.mockResponse({ page: 1, pageSize: 3 }).subscribe(r => (page1 = r));
+      service.mockResponse({ page: 2, pageSize: 3 }).subscribe(r => (page2 = r));
       expect(page1.articles).not.toEqual(page2.articles);
       expect(page1.articles.length).toBe(3);
     });
 
-    it('searchTopHeadlines returns ok status with articles', () => {
-      let result: any;
-      service.searchTopHeadlines({ page: 1, pageSize: 5 }).subscribe(r => (result = r));
-      expect(result.status).toBe('ok');
-      expect(result.articles.length).toBe(5);
-    });
-
     it('does not make HTTP requests', () => {
-      service.searchEverything({ page: 1, pageSize: 10 }).subscribe();
-      service.searchTopHeadlines({ page: 1, pageSize: 10 }).subscribe();
+      service.mockResponse({ page: 1, pageSize: 10 }).subscribe();
       http.expectNone('/newsapi/v2/everything');
       http.expectNone('/newsapi/v2/top-headlines');
     });
   });
 
   describe('real mode', () => {
-    beforeEach(() => { environment.useMockNews = false; });
-
     it('searchEverything sends GET to /newsapi/v2/everything with apiKey and pagination', () => {
       service.searchEverything({ page: 2, pageSize: 5 }).subscribe();
       const req = http.expectOne(r => r.url === '/newsapi/v2/everything');

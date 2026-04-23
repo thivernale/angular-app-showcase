@@ -10,17 +10,15 @@ import { articles } from './tmp-data.json';
 })
 export class NewsService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = '/newsapi/v2';
+  public readonly baseUrl = '/newsapi/v2';
 
   searchEverything(params: SearchParams): Observable<ArticlesResponse> {
-    if (environment.useMockNews) return this.mockResponse(params);
     return this.http
       .get<ArticlesResponse>(`${this.baseUrl}/everything`, { params: this.buildParams(params) })
       .pipe(catchError(err => of(this.errorResponse(err))));
   }
 
   searchTopHeadlines(params: TopHeadlinesParams): Observable<ArticlesResponse> {
-    if (environment.useMockNews) return this.mockResponse(params);
     return this.http
       .get<ArticlesResponse>(`${this.baseUrl}/top-headlines`, { params: this.buildParams(params) })
       .pipe(catchError(err => of(this.errorResponse(err))));
@@ -51,7 +49,7 @@ export class NewsService {
     };
   }
 
-  private mockResponse(params: SearchParams): Observable<ArticlesResponse> {
+  public mockResponse(params: SearchParams): Observable<ArticlesResponse> {
     const allArticles = [...articles] as Article[];
     const sliceStart = (params.page - 1) * params.pageSize;
     return of({
