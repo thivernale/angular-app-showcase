@@ -4,11 +4,13 @@
   "cli": {
     "packageManager": "npm",
     "analytics": false,
-    "schematicCollections": ["angular-eslint"]
+    "schematicCollections": [
+      "angular-eslint"
+    ]
   },
   "newProjectRoot": "projects",
   "projects": {
-    "app-showcase": {
+    "angular-app-showcase": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -42,7 +44,9 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/styles.css"]
+            "styles": [
+              "src/styles.css"
+            ]
           },
           "configurations": {
             "production": {
@@ -81,10 +85,10 @@
           },
           "configurations": {
             "production": {
-              "buildTarget": "app-showcase:build:production"
+              "buildTarget": "angular-app-showcase:build:production"
             },
             "development": {
-              "buildTarget": "app-showcase:build:development"
+              "buildTarget": "angular-app-showcase:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -95,7 +99,10 @@
         "lint": {
           "builder": "@angular-eslint/builder:lint",
           "options": {
-            "lintFilePatterns": ["src/**/*.ts", "src/**/*.html"]
+            "lintFilePatterns": [
+              "src/**/*.ts",
+              "src/**/*.html"
+            ]
           }
         }
       }
