@@ -11,18 +11,26 @@ permissions:
 
 jobs:
   build:
-    if: false
+    #    if: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.0
         with:
+          show-progress: 'false'
           fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+          cache: npm
 
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund --loglevel=error
 
       - name: Lint
+        if: false
         run: ng lint
 
       - name: Install Playwright browser
@@ -30,3 +38,26 @@ jobs:
 
       - name: Run tests
         run: npm run test:ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Deploy to S3
+        env:
+          APPLICATION_NAME: ${{ github.event.repository.name }}
+        run: |
+          SRC_PATH="dist/${APPLICATION_NAME}/browser"
+          DEST_PATH="s3://${{vars.AWS_S3_BUCKET_NAME}}/${APPLICATION_NAME}"
+          echo "Deploying $SRC_PATH to $DEST_PATH"
+
+          aws s3 sync $SRC_PATH $DEST_PATH --cache-control "public, max-age=31536000, immutable"
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.AWS_CLOUDFRONT_DISTRIBUTION_ID }} --paths "/index.html"
+          aws s3 sync $SRC_PATH $DEST_PATH --delete
