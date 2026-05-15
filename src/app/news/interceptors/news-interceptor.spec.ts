@@ -96,7 +96,7 @@ describe('newsInterceptor', () => {
     const next = vi.fn().mockReturnValue(throwError(() => ({ status })));
 
     TestBed.runInInjectionContext(() => {
-      interceptor(req, next).subscribe({ error: () => {} });
+      interceptor(req, next).subscribe({ error: (_e: unknown) => void _e });
     });
 
     expect(setItemSpy).toHaveBeenCalledWith('mock-response', 'true');

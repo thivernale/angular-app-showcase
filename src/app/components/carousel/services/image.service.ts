@@ -14,7 +14,7 @@ export class ImageService {
   httpResourceRef = httpResource<Image[]>(
     () => this.apiUrl,
     {
-      parse: (response: any) => response.map(this.imageMapper),
+      parse: (response: unknown) => (response as ImageResponse[]).map(this.imageMapper),
     }
   );
   isLoading = this.httpResourceRef.isLoading;

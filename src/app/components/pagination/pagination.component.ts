@@ -26,7 +26,7 @@ export class PaginationComponent {
     return this.range(numPages, start);
   });
 
-  private range(numPages: number, start: number = 1) {
+  private range(numPages: number, start = 1) {
     return Array.from({ length: numPages }, (_, i) => i + start);
   }
 }

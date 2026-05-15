@@ -30,14 +30,13 @@ jobs:
         run: npm ci --prefer-offline --no-audit --no-fund --loglevel=error
 
       - name: Lint
-        if: false
-        run: ng lint
+        run: npm run lint
 
-      - name: Install Playwright browser
-        run: npx playwright install chromium --with-deps
+      #      - name: Install Playwright browser
+      #        run: npx playwright install chromium --with-deps
 
       - name: Run tests
-        run: npm run test:ci
+        run: npm run test
 
       - name: Build
         run: npm run build

@@ -23,7 +23,7 @@ export class CarouselComponent {
   autoplay = signal(true);
   timeoutId = signal<number | undefined>(undefined);
   timeoutEffect = effect(onCleanup => {
-    let data = this.currentIndex();
+    this.currentIndex();
     if (!this.autoplay()) {
       return;
     }

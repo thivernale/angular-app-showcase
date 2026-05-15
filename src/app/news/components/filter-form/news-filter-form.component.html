@@ -13,7 +13,10 @@
   <form (ngSubmit)="onSubmit()" [formGroup]="form">
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center"
-           role="button" (click)="toggleFilters()">
+           role="button" tabindex="0"
+           (click)="toggleFilters()"
+           (keydown.enter)="toggleFilters()"
+           (keydown.space)="toggleFilters()">
         <span>Filters</span>
         <i class="fa" [class.fa-chevron-down]="!filtersExpanded()" [class.fa-chevron-up]="filtersExpanded()"></i>
       </div>

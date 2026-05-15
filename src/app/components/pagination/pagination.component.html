@@ -2,17 +2,17 @@
   <ul class="pagination">
     @if (currentPage() > 1 + numPagesBeforeAfter) {
       <li class="page-item">
-        <a class="page-link" (click)="pageChange.emit(1)">&laquo;</a>
+        <button type="button" class="page-link" (click)="pageChange.emit(1)">&laquo;</button>
       </li>
     }
     @for (page of pages(); track $index) {
       <li class="page-item" [ngClass]="{active: page === currentPage()}">
-        <a class="page-link" (click)="pageChange.emit(page)">{{ page }}</a>
+        <button type="button" class="page-link" (click)="pageChange.emit(page)">{{ page }}</button>
       </li>
     }
     @if (currentPage() < totalPages() - numPagesBeforeAfter) {
       <li class="page-item">
-        <a class="page-link" (click)="pageChange.emit(totalPages())">&raquo;</a>
+        <button type="button" class="page-link" (click)="pageChange.emit(totalPages())">&raquo;</button>
       </li>
     }
   </ul>

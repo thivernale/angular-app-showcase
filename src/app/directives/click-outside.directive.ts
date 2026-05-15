@@ -1,4 +1,4 @@
-import { AfterViewInit, Directive, DOCUMENT, ElementRef, Inject, output } from '@angular/core';
+import { AfterViewInit, Directive, DOCUMENT, ElementRef, inject, output } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter, fromEvent, Observable } from 'rxjs';
 
@@ -8,18 +8,14 @@ import { filter, fromEvent, Observable } from 'rxjs';
 export class ClickOutsideDirective implements AfterViewInit {
   clickOutsideRef = output<void>();
 
-  private readonly eventObservable: Observable<Event>;
+  private readonly element = inject(ElementRef);
+  private readonly document = inject(DOCUMENT);
 
-  constructor(
-    private readonly element: ElementRef,
-    @Inject(DOCUMENT) private readonly document: Document
-  ) {
-    this.eventObservable = fromEvent(this.document, 'click')
-      .pipe(
-        filter(event => !this.isClickInside(event.target as Node)),
-        takeUntilDestroyed()
-      );
-  }
+  private readonly eventObservable: Observable<Event> = fromEvent(this.document, 'click')
+    .pipe(
+      filter(event => !this.isClickInside(event.target as Node)),
+      takeUntilDestroyed()
+    );
 
   ngAfterViewInit(): void {
     this.eventObservable

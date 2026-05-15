@@ -1,4 +1,4 @@
-import { ElementRef } from '@angular/core';
+import { DOCUMENT, ElementRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClickOutsideDirective } from './click-outside.directive';
@@ -12,7 +12,15 @@ describe('ClickOutsideDirective', () => {
     const mockDiv = document.createElement('div');
     mockDocument = document;
     mockElementRef = new ElementRef(mockDiv);
-    directive = TestBed.runInInjectionContext(() => new ClickOutsideDirective(mockElementRef, mockDocument));
+
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: ElementRef, useValue: mockElementRef },
+        { provide: DOCUMENT, useValue: mockDocument },
+      ]
+    });
+
+    directive = TestBed.runInInjectionContext(() => new ClickOutsideDirective());
     directive.ngAfterViewInit();
   });
 

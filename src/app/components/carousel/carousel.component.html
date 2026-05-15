@@ -21,7 +21,9 @@
         class="dot"
         [ngClass]="{'active': $index === currentIndex()}"
         (click)="goToImage($index)"
-        (keydown)="goToImage($index)">
+        (keydown)="goToImage($index)"
+        tabindex="0"
+      >
         ●
       </div>
     }
