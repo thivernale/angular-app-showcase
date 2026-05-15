@@ -1,24 +1,36 @@
-import { HttpHandlerFn, HttpRequest } from '@angular/common/http';
+import { HttpRequest } from '@angular/common/http';
 import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
+import { environment } from '../../../environments/environment';
 import { authInterceptor } from './auth-interceptor';
 
 describe('authInterceptor', () => {
-  let mockNext: Mock<HttpHandlerFn>;
+  let mockNext: Mock;
   let mockRequest: HttpRequest<unknown>;
   const getItemSpy = vi.spyOn(Storage.prototype, 'getItem');
 
   beforeEach(() => {
     mockNext = vi.fn();
-    mockRequest = new HttpRequest('GET', '/test');
+    mockRequest = new HttpRequest('GET', environment.authUrl);
   });
 
   afterEach(() => {
     getItemSpy.mockClear();
     localStorage.clear();
-  })
+  });
 
   it('should pass unaltered request when token is not present in localStorage', () => {
     getItemSpy.mockReturnValue(null);
+
+    authInterceptor(mockRequest, mockNext);
+
+    expect(getItemSpy).toHaveBeenCalledWith('token');
+    expect(mockNext).toHaveBeenCalledWith(mockRequest);
+  });
+
+  it('should pass unaltered request when url is not auth url', () => {
+    getItemSpy.mockReturnValue(null);
+
+    mockRequest = new HttpRequest('GET', 'https://api.example.com/auth');
 
     authInterceptor(mockRequest, mockNext);
 
