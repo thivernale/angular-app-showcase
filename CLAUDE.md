@@ -39,6 +39,7 @@ Angular 21 app using **standalone components** exclusively — no NgModules. All
 - **`calendar/`** — Displays activities from a static JSON data file passed via route `data`.
 - **`gallery/`** — Image gallery backed by `ImageService`, rendered via `CarouselComponent` with signal-driven autoplay using `effect()`.
 - **`components/`** — Shared: `AlertComponent` (toast notifications), `SidebarComponent`, `MainComponent` (router outlet wrapper), `PaginationComponent`, `CarouselComponent`.
+- **`interval-timer/`** — Countdown interval timer with configurable rounds and duration. Uses `signal()` for internal state, `effect()` to manage a `setInterval` tied to a wall-clock `targetTime`, and `computed()` for per-interval remaining seconds. Supports pause/resume and optional beep sounds via the Web Audio API.
 - **`directives/`** — `ClickOutsideDirective`: emits `clickOutsideRef` when a click occurs outside the host element.
 
 ### State Management
@@ -57,7 +58,7 @@ Two patterns coexist — use signals for new feature work:
 
 ### Routing
 
-`app.routes.ts` defines top-level lazy routes. Default redirect goes to `/todos`. The `authGuard` (canActivateChild) protects `/auth/**` — it grants access only when the user is **not** logged in. The router is configured with `withComponentInputBinding()`, so route and query params can be bound directly to component `input()` signals.
+`app.routes.ts` defines top-level lazy routes. Default redirect goes to `/todos`. The `authGuard` (canActivateChild) protects `/auth/**` — it grants access only when the user is **not** logged in.
 
 ### HTTP Interceptors
 

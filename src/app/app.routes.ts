@@ -4,10 +4,9 @@ import { ArticlesComponent } from './articles/articles.component';
 import { authGuard } from './auth/guards/auth-guard';
 import { authRoutes } from './auth/routes/auth-routes';
 import { CalendarComponent } from './calendar/calendar.component';
-import activities from './calendar/data/data.json';
-import { Activities } from './calendar/types/activities.interface';
 import { FleetNavigatorComponent } from './fleet/fleet-navigator.component';
 import { GalleryComponent } from './gallery/gallery.component';
+import { IntervalTimerComponent } from './interval-timer/interval-timer.component';
 import { NewsComponent } from './news/news.component';
 import { TodosComponent } from './todos/todos.component';
 
@@ -17,8 +16,9 @@ export const routes: Routes = [
   { path: 'articles/**', loadComponent: () => ArticlesComponent },
   { path: 'news', loadComponent: () => NewsComponent },
   { path: 'fleet-navigator', loadComponent: () => FleetNavigatorComponent },
-  { path: 'calendar', loadComponent: () => CalendarComponent, data: { 'activities': (activities as Activities) } },
+  { path: 'calendar', loadComponent: () => CalendarComponent },
   { path: 'gallery', loadComponent: () => GalleryComponent },
+  { path: 'interval-timer', loadComponent: () => IntervalTimerComponent },
   { path: 'auth', children: authRoutes, canActivateChild: [authGuard] }
 ];
 
@@ -47,5 +47,8 @@ export const routingLinkOptions: RoutingLinkOptions = [
     {
       label: 'Gallery', link: 'gallery', icon: 'fa-image'
     },
+    {
+      label: 'Interval Timer', link: 'interval-timer', icon: 'fa-clock'
+    }
   ]
 ;
