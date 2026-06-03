@@ -1,6 +1,6 @@
 export function playBeep(duration = 0.2) {
   // 1. Create the audio context
-  // @ts-ignore
+  // @ts-expect-error cross-browser compatibility
   const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
   // 2. Create an oscillator node
