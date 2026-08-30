@@ -1,6 +1,7 @@
 import { NgClass } from '@angular/common';
-import { Component, computed, effect, model, signal } from '@angular/core';
+import { Component, computed, effect, inject, model, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { IntervalTimerConfigService } from './services/interval-timer-config.service';
 import { playBeep } from './utils/beep';
 
 @Component({
@@ -11,20 +12,25 @@ import { playBeep } from './utils/beep';
   ],
   template: `
     @let active = isTimerActive();
-    @let started = remainingTotal() > 0;
+    @let started = sessionActive();
     <div class="d-flex flex-column flex-wrap gap-4 p-5 justify-content-center align-items-center border-bottom">
-      <h2 class="">Interval Timer</h2>
-      <div class="">
+      <h2 class="fs-1">Interval Timer</h2>
+      <div class="d-flex flex-column align-items-center">
         <div
-          class="p-5 display-1 shadow-lg fw-bold text-success bg-success-subtle rounded-circle d-flex justify-content-center align-items-center"
-          [ngClass]="remaining() === 0 ? 'bg-white' : ''"
+          id="countdown-circle"
+          class="p-5 display-1 shadow-lg fw-bold rounded-circle d-flex justify-content-center align-items-center"
+          [ngClass]="{
+            'text-success bg-success-subtle': phase() === 'work',
+            'text-secondary bg-secondary-subtle': phase() === 'rest',
+            'bg-white': remaining() === 0
+          }"
           style="width: 200px; height: 200px;"
         >
           {{ remaining() }}
         </div>
         @if (started) {
-          <div class="pt-3 text-center">
-            Interval {{ rounds() - Math.ceil(remainingTotal() / duration()) + 1 }} of {{ rounds() }}
+          <div class="pt-3 fs-3 text-center">
+            Interval {{ currentRound() }} of {{ rounds() }} — {{ phase() === 'work' ? 'Work' : 'Rest' }}
           </div>
         }
       </div>
@@ -48,18 +54,33 @@ import { playBeep } from './utils/beep';
           <input
             type="number"
             class="form-control"
-            [ngModel]="duration()" (ngModelChange)="duration.set($event)"
+            [ngModel]="work()" (ngModelChange)="work.set($event)"
             [disabled]="started"
             [max]="120"
             [min]="10"
             [step]="5"
-            placeholder="Duration"
-            id="duration"
+            placeholder="Work"
+            id="work"
           >
-          <label for="duration" class="form-label">Interval duration</label>
+          <label for="work" class="form-label">Work duration</label>
+        </div>
+        <div class="form-floating col-md-2 col-6">
+          <input
+            type="number"
+            class="form-control"
+            [ngModel]="rest()" (ngModelChange)="rest.set($event)"
+            [disabled]="started"
+            [max]="60"
+            [min]="0"
+            [step]="5"
+            placeholder="Rest"
+            id="rest"
+          >
+          <label for="rest" class="form-label">Rest duration</label>
         </div>
         <button
           class="btn"
+          id="toggle-started"
           (click)="toggleTimerStarted()"
           [ngClass]="started ? 'btn-outline-primary' : 'btn-primary'"
         >{{ started ? 'Stop' : 'Start' }}
@@ -67,6 +88,7 @@ import { playBeep } from './utils/beep';
         @if (started) {
           <button
             class="btn btn-primary"
+            id="toggle-active"
             (click)="toggleTimerActive()"
           >{{ active ? 'Pause' : 'Resume' }}
           </button>
@@ -77,68 +99,176 @@ import { playBeep } from './utils/beep';
           <span class="form-check-label">Sound</span>
         </label>
       </div>
+
+      <div
+        class="d-flex flex-column flex-lg-row gap-2 align-items-center justify-content-center w-100 mt-4 pt-3 border-top small text-body-secondary">
+        <select class="form-select form-select-sm w-auto" [ngModel]="selectedConfigName()"
+                (ngModelChange)="selectedConfigName.set($event)" [disabled]="started" id="savedConfigs"
+                aria-label="Saved configurations">
+          <option value="" disabled>Saved configs…</option>
+          @for (c of savedConfigs(); track c.name) {
+            <option [value]="c.name">{{ c.name }}</option>
+          }
+        </select>
+        <button class="btn btn-sm btn-outline-secondary" (click)="loadSelectedConfig()"
+                [disabled]="started || !selectedConfigName()">Load
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" (click)="deleteSelectedConfig()"
+                [disabled]="started || !selectedConfigName()">Delete
+        </button>
+        <input type="text" class="form-control form-control-sm w-auto" [ngModel]="newConfigName()"
+               (ngModelChange)="newConfigName.set($event)" [disabled]="started" placeholder="Config name"
+               id="newConfigName" aria-label="Config name">
+        <button class="btn btn-sm btn-outline-secondary" (click)="saveCurrentConfig()"
+                [disabled]="started">Save
+        </button>
+      </div>
     </div>
   `,
 })
 export class IntervalTimerComponent {
   rounds = model(10);
-  duration = model(30);
+  work = model(30);
+  rest = model(0);
   playSound = model(true);
-  remainingTotal = signal(0);
+
+  phase = signal<'work' | 'rest'>('work');
+  currentRound = signal(1);
+  phaseRemaining = signal(0);
+  sessionActive = signal(false);
   isTimerActive = signal(false);
-  remaining = computed(() => this.remainingTotal() % (this.duration() ?? 1));
-  protected readonly Math = Math;
+
+  remaining = computed(() => this.phaseRemaining());
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private targetTime = 0;
 
+  private readonly configService = inject(IntervalTimerConfigService);
+  protected readonly savedConfigs = this.configService.configs;
+  protected selectedConfigName = signal('');
+  protected newConfigName = signal('');
+
+  protected loadSelectedConfig(): void {
+    const config = this.configService.load(this.selectedConfigName());
+    if (!config) {
+      return;
+    }
+    this.rounds.set(config.rounds);
+    this.work.set(config.work);
+    this.rest.set(config.rest);
+    this.playSound.set(config.playSound);
+  }
+
+  protected saveCurrentConfig(): void {
+    const name = this.newConfigName().trim() || this.generateDefaultName();
+    this.configService.save({
+      name,
+      rounds: this.rounds(),
+      work: this.work(),
+      rest: this.rest(),
+      playSound: this.playSound(),
+    });
+    this.newConfigName.set('');
+    this.selectedConfigName.set(name);
+  }
+
+  protected deleteSelectedConfig(): void {
+    if (!this.selectedConfigName()) {
+      return;
+    }
+    this.configService.remove(this.selectedConfigName());
+    this.selectedConfigName.set('');
+  }
+
+  private generateDefaultName(): string {
+    const rest = this.rest() > 0 ? `/${this.rest()}` : '';
+    const sound = this.playSound() ? '' : ' (silent)';
+    return `${this.rounds()}x${this.work()}${rest}${sound}`;
+  }
+
   protected toggleTimerStarted() {
-    if (this.remainingTotal() > 0) {
+    if (this.sessionActive()) {
       // stop timer
-      this.remainingTotal.set(0);
+      this.sessionActive.set(false);
       this.isTimerActive.set(false);
+      this.phase.set('work');
+      this.currentRound.set(1);
+      this.phaseRemaining.set(0);
     } else {
       // start timer
-      this.remainingTotal.set(this.duration() * this.rounds());
+      this.phase.set('work');
+      this.currentRound.set(1);
+      this.phaseRemaining.set(this.work());
+      this.sessionActive.set(true);
       this.isTimerActive.set(true);
     }
   }
 
   protected toggleTimerActive() {
-    if (this.isTimerActive()) {
-      // pause timer
-      this.isTimerActive.set(false);
-    } else {
-      // resume timer
-      this.isTimerActive.set(true);
-    }
+    this.isTimerActive.update(active => !active);
   }
 
   private readonly tick = () => {
     const now = Date.now();
     // Calculate true remaining time based on a system clock
     const remaining = Math.max(0, Math.ceil((this.targetTime - now) / 1000));
-    this.remainingTotal.set(remaining);
+    this.phaseRemaining.set(remaining);
 
-    if (this.playSound() && this.remaining() <= 3) {
-      playBeep(this.remaining() === 0 ? 0.5 : 0.2);
+    if (this.playSound() && remaining <= 3) {
+      playBeep(remaining === 0 ? 0.5 : 0.2);
     }
 
-    if (this.remainingTotal() <= 0) {
-      this.isTimerActive.set(false);
+    if (remaining <= 0) {
+      this.advancePhase();
     }
   };
 
+  private advancePhase() {
+    const isLastRound = this.currentRound() >= this.rounds();
+
+    if (this.phase() === 'work') {
+      if (isLastRound) {
+        this.completeSession();
+        return;
+      }
+      if (this.rest() > 0) {
+        this.phase.set('rest');
+        this.phaseRemaining.set(this.rest());
+        this.targetTime = Date.now() + this.rest() * 1000;
+        return;
+      }
+      this.startNextWorkRound();
+      return;
+    }
+
+    this.startNextWorkRound();
+  }
+
+  private startNextWorkRound() {
+    this.currentRound.update(round => round + 1);
+    this.phase.set('work');
+    this.phaseRemaining.set(this.work());
+    this.targetTime = Date.now() + this.work() * 1000;
+  }
+
+  private completeSession() {
+    this.isTimerActive.set(false);
+    this.sessionActive.set(false);
+    this.phaseRemaining.set(0);
+    this.currentRound.set(1);
+    this.phase.set('work');
+  }
+
   private readonly manageInterval = effect((onCleanup) => {
     const active = this.isTimerActive();
-    const remaining = this.remainingTotal();
+    const running = this.sessionActive();
 
-    if (remaining <= 0 || !active) {
+    if (!running || !active) {
       if (this.timerInterval) {
         clearInterval(this.timerInterval);
         this.timerInterval = null;
       }
     } else if (!this.timerInterval) {
-      this.targetTime = Date.now() + (remaining * 1000);
+      this.targetTime = Date.now() + (this.phaseRemaining() * 1000);
       this.timerInterval = setInterval(this.tick, 1_000);
     }
 
