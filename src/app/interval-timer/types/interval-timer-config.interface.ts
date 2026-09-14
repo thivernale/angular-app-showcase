@@ -4,4 +4,5 @@ export interface IntervalTimerConfig {
   work: number;
   rest: number;
   playSound: boolean;
+  exercises?: string;
 }

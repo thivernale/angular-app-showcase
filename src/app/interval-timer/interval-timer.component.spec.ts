@@ -182,6 +182,161 @@ describe('IntervalTimerComponent', () => {
     });
   });
 
+  describe('exercise text', () => {
+    it('shows nothing when the textarea is empty', () => {
+      start(2, 5, 0);
+
+      expect((component as any).currentExercise()).toBeNull();
+      expect(fixture.debugElement.query(By.css('#exercise-line'))).toBeNull();
+    });
+
+    it('renders the exercise text under the round label when set', () => {
+      component.exercisesText.set('Push-ups');
+      start(2, 5, 0);
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.css('#exercise-line')).nativeElement.textContent).toContain('Push-ups');
+    });
+
+    it('reuses a single exercise for every round', () => {
+      component.exercisesText.set('Push-ups');
+      start(3, 5, 0);
+
+      expect((component as any).currentExercise()).toBe('Push-ups');
+      advanceAndTick(5);
+      expect((component as any).currentExercise()).toBe('Push-ups');
+      advanceAndTick(5);
+      expect((component as any).currentExercise()).toBe('Push-ups');
+    });
+
+    it('cycles through multiple exercises when there are fewer than rounds', () => {
+      component.exercisesText.set('A\nB');
+      start(4, 5, 0);
+
+      expect((component as any).currentExercise()).toBe('A');
+      advanceAndTick(5);
+      expect((component as any).currentExercise()).toBe('B');
+      advanceAndTick(5);
+      expect((component as any).currentExercise()).toBe('A');
+      advanceAndTick(5);
+      expect((component as any).currentExercise()).toBe('B');
+    });
+
+    it('never references exercises beyond the number of rounds', () => {
+      component.exercisesText.set('A\nB\nC\nD\nE');
+      start(2, 5, 0);
+
+      expect((component as any).currentExercise()).toBe('A');
+      advanceAndTick(5);
+      expect((component as any).currentExercise()).toBe('B');
+      advanceAndTick(5); // session completes, resets to round 1
+
+      expect(component.sessionActive()).toBe(false);
+      expect((component as any).currentExercise()).toBe('Next: A');
+    });
+
+    it('falls back to "Staple exercise" for a blank line', () => {
+      component.exercisesText.set('A\n\nC');
+      start(3, 5, 0);
+
+      expect((component as any).currentExercise()).toBe('A');
+      advanceAndTick(5);
+      expect((component as any).currentExercise()).toBe('Staple exercise');
+      advanceAndTick(5);
+      expect((component as any).currentExercise()).toBe('C');
+    });
+
+    it('falls back to "Staple exercise" for a whitespace-only line', () => {
+      component.exercisesText.set('A\n   \nC');
+      start(3, 5, 0);
+
+      advanceAndTick(5);
+      expect((component as any).currentExercise()).toBe('Staple exercise');
+    });
+
+    it('treats a single trailing newline as not adding an extra slot', () => {
+      component.exercisesText.set('A\nB\n');
+      start(3, 5, 0);
+
+      expect((component as any).currentExercise()).toBe('A');
+      advanceAndTick(5);
+      expect((component as any).currentExercise()).toBe('B');
+      advanceAndTick(5);
+      expect((component as any).currentExercise()).toBe('A');
+    });
+
+    it('shows a preview of the next round\'s exercise during rest', () => {
+      component.exercisesText.set('A\nB');
+      start(3, 5, 2);
+
+      advanceAndTick(5); // into rest before round 2
+
+      expect(component.phase()).toBe('rest');
+      expect((component as any).currentExercise()).toBe('Next: B');
+    });
+
+    it('shows the fallback with the "Next:" prefix during rest when the upcoming slot is blank', () => {
+      component.exercisesText.set('A\n\n');
+      start(2, 5, 2);
+
+      advanceAndTick(5); // into rest before round 2
+
+      expect((component as any).currentExercise()).toBe('Next: Staple exercise');
+    });
+
+    it('shows a "Next:" preview of round 1\'s exercise before the session is started', () => {
+      component.exercisesText.set('A\nB');
+
+      expect((component as any).currentExercise()).toBe('Next: A');
+    });
+
+    it('switches from the "Next:" preview to the plain work-phase label once started', () => {
+      component.exercisesText.set('A\nB');
+      expect((component as any).currentExercise()).toBe('Next: A');
+
+      start(2, 5, 0);
+
+      expect((component as any).currentExercise()).toBe('A');
+    });
+  });
+
+  describe('reset', () => {
+    it('restores all settings to their default values', () => {
+      component.rounds.set(3);
+      component.work.set(45);
+      component.rest.set(15);
+      component.playSound.set(false);
+      component.exercisesText.set('A\nB');
+      (component as any).newConfigName.set('foo');
+      (component as any).selectedConfigName.set('bar');
+
+      (component as any).resetSettings();
+
+      expect(component.rounds()).toBe(10);
+      expect(component.work()).toBe(30);
+      expect(component.rest()).toBe(0);
+      expect(component.playSound()).toBe(true);
+      expect(component.exercisesText()).toBe('');
+      expect((component as any).newConfigName()).toBe('');
+      expect((component as any).selectedConfigName()).toBe('');
+    });
+
+    it('renders a reset button that is disabled while the session is running', () => {
+      start(2, 5, 0);
+      fixture.detectChanges();
+
+      const resetButton = fixture.debugElement.query(By.css('#reset-settings')).nativeElement;
+      expect(resetButton.disabled).toBe(true);
+    });
+
+    it('renders an enabled reset button when the session is not running', () => {
+      fixture.detectChanges();
+
+      const resetButton = fixture.debugElement.query(By.css('#reset-settings')).nativeElement;
+      expect(resetButton.disabled).toBe(false);
+    });
+  });
+
   describe('saved configurations', () => {
     it('saves the current settings under the typed name', () => {
       component.rounds.set(8);
@@ -199,7 +354,21 @@ describe('IntervalTimerComponent', () => {
         work: 20,
         rest: 5,
         playSound: false,
+        exercises: '',
       });
+    });
+
+    it('overwrites the selected configuration when no new name is typed', () => {
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      configService.save({ name: 'MyWorkout', rounds: 5, work: 20, rest: 0, playSound: true });
+      (component as any).selectedConfigName.set('MyWorkout');
+      component.rounds.set(9);
+      (component as any).newConfigName.set('');
+
+      (component as any).saveCurrentConfig();
+
+      expect(configService.configs()).toHaveLength(1);
+      expect(configService.load('MyWorkout')?.rounds).toBe(9);
     });
 
     it('generates a pattern-based name when the name field is left blank and rest is 0', () => {
@@ -275,6 +444,40 @@ describe('IntervalTimerComponent', () => {
       expect((component as any).savedConfigs()).toEqual([
         { name: 'A', rounds: 1, work: 1, rest: 0, playSound: true },
       ]);
+    });
+
+    it('includes the exercise text when saving', () => {
+      component.rounds.set(4);
+      component.work.set(20);
+      component.rest.set(5);
+      component.exercisesText.set('A\nB');
+      (component as any).newConfigName.set('WithExercises');
+
+      (component as any).saveCurrentConfig();
+
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      expect(configService.load('WithExercises')?.exercises).toBe('A\nB');
+    });
+
+    it('restores the exercise text on load', () => {
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      configService.save({ name: 'WithExercises', rounds: 4, work: 20, rest: 5, playSound: true, exercises: 'X\nY' });
+      (component as any).selectedConfigName.set('WithExercises');
+
+      (component as any).loadSelectedConfig();
+
+      expect(component.exercisesText()).toBe('X\nY');
+    });
+
+    it('resets the exercise text to empty when loading a config saved before this field existed', () => {
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      configService.save({ name: 'Legacy', rounds: 5, work: 25, rest: 0, playSound: true });
+      component.exercisesText.set('leftover text');
+      (component as any).selectedConfigName.set('Legacy');
+
+      (component as any).loadSelectedConfig();
+
+      expect(component.exercisesText()).toBe('');
     });
   });
 });
