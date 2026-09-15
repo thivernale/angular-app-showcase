@@ -16,7 +16,8 @@
         "digest"
       ],
       "automerge": true,
-      "automergeType": "pr-comment"
+      "platformAutomerge": true,
+      "automergeType": "pr"
     },
     {
       "matchManagers": [
