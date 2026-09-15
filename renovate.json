@@ -7,17 +7,13 @@
     "before 8am on Monday"
   ],
   "timezone": "Europe/Berlin",
+  "automerge": true,
+  "platformAutomerge": false,
+  "automergeType": "pr",
   "packageRules": [
     {
-      "matchUpdateTypes": [
-        "minor",
-        "patch",
-        "pin",
-        "digest"
-      ],
-      "automerge": true,
-      "platformAutomerge": true,
-      "automergeType": "pr"
+      "matchUpdateTypes": ["major"],
+      "automerge": false
     },
     {
       "matchManagers": [
