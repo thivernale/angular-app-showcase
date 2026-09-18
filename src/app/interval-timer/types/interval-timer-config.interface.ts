@@ -5,4 +5,5 @@ export interface IntervalTimerConfig {
   rest: number;
   playSound: boolean;
   exercises?: string;
+  videoUrl?: string;
 }

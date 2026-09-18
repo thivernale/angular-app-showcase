@@ -1,8 +1,11 @@
 import { NgClass } from '@angular/common';
-import { Component, computed, effect, inject, model, signal } from '@angular/core';
+import { Component, computed, effect, ElementRef, inject, model, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IntervalTimerConfigService } from './services/interval-timer-config.service';
+import { YouTubePlayerService } from './services/youtube-player.service';
 import { playBeep } from './utils/beep';
+import { extractYouTubeVideoId } from './utils/youtube';
+import { YouTubePlayerHandle } from './utils/youtube-player';
 
 @Component({
   selector: 'app-interval-timer',
@@ -42,6 +45,11 @@ import { playBeep } from './utils/beep';
             <div id="exercise-line"
                  class="fs-2 fw-normal text-secondary text-center text-lg-end px-4 py-3 bg-secondary-subtle border border-secondary-subtle rounded-3 shadow-sm">
               {{ exercise }}
+            </div>
+          }
+          @if (started && videoId(); as id) {
+            <div id="video-panel" class="w-100" style="max-width: 480px; aspect-ratio: 16 / 9;">
+              <div #videoPlayerContainer class="w-100 h-100"></div>
             </div>
           }
         </div>
@@ -158,6 +166,19 @@ import { playBeep } from './utils/beep';
             [disabled]="started"
             placeholder="One exercise per line, e.g.&#10;Push-ups&#10;Squats&#10;Plank"
           ></textarea>
+
+          <label for="videoUrl" class="form-label fw-semibold">Video <span class="text-body-secondary fw-normal">(optional)</span></label>
+          <input
+            type="text"
+            class="form-control"
+            id="videoUrl"
+            [ngModel]="videoUrl()" (ngModelChange)="videoUrl.set($event)"
+            [disabled]="started"
+            placeholder="YouTube video, Shorts, or share link"
+          >
+          @if (videoUrl() && !videoId()) {
+            <div class="form-text text-danger">Enter a valid YouTube URL</div>
+          }
         </div>
       </div>
     </div>
@@ -169,6 +190,12 @@ export class IntervalTimerComponent {
   rest = model(0);
   playSound = model(true);
   exercisesText = model('');
+  videoUrl = model('');
+
+  protected readonly videoId = computed(() => extractYouTubeVideoId(this.videoUrl()));
+  private readonly videoPlayerContainer = viewChild<ElementRef<HTMLDivElement>>('videoPlayerContainer');
+  private readonly youtubePlayerService = inject(YouTubePlayerService);
+  private videoPlayer: YouTubePlayerHandle | null = null;
 
   phase = signal<'work' | 'rest'>('work');
   currentRound = signal(1);
@@ -226,6 +253,7 @@ export class IntervalTimerComponent {
     this.rest.set(config.rest);
     this.playSound.set(config.playSound);
     this.exercisesText.set(config.exercises ?? '');
+    this.videoUrl.set(config.videoUrl ?? '');
   }
 
   protected saveCurrentConfig(): void {
@@ -240,6 +268,7 @@ export class IntervalTimerComponent {
       rest: this.rest(),
       playSound: this.playSound(),
       exercises: this.exercisesText(),
+      videoUrl: this.videoUrl(),
     });
     this.newConfigName.set('');
 
@@ -268,6 +297,7 @@ export class IntervalTimerComponent {
     this.rest.set(0);
     this.playSound.set(true);
     this.exercisesText.set('');
+    this.videoUrl.set('');
     this.newConfigName.set('');
     this.selectedConfigName.set('');
   }
@@ -365,5 +395,37 @@ export class IntervalTimerComponent {
         this.timerInterval = null;
       }
     });
+  });
+
+  private readonly manageVideoPlayer = effect((onCleanup) => {
+    const running = this.sessionActive();
+    const id = this.videoId();
+    const container = this.videoPlayerContainer();
+
+    if (running && id && container) {
+      this.youtubePlayerService.create(container.nativeElement, id).then(handle => {
+        this.videoPlayer = handle;
+        handle.play();
+      });
+    }
+
+    onCleanup(() => {
+      if (this.videoPlayer) {
+        this.videoPlayer.destroy();
+        this.videoPlayer = null;
+      }
+    });
+  });
+
+  private readonly syncVideoPlaybackState = effect(() => {
+    const active = this.isTimerActive();
+    if (!this.videoPlayer) {
+      return;
+    }
+    if (active) {
+      this.videoPlayer.play();
+    } else {
+      this.videoPlayer.pause();
+    }
   });
 }

@@ -3,6 +3,7 @@ import { By } from '@angular/platform-browser';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { IntervalTimerComponent } from './interval-timer.component';
 import { IntervalTimerConfigService } from './services/interval-timer-config.service';
+import { YouTubePlayerService } from './services/youtube-player.service';
 
 class FakeOscillator {
   frequency = { setValueAtTime: vi.fn() };
@@ -19,9 +20,18 @@ class FakeAudioContext {
 
 let beepStopTimes: number[];
 
+function fakeVideoHandle() {
+  return { play: vi.fn(), pause: vi.fn(), destroy: vi.fn() };
+}
+
+class FakeYouTubePlayerService {
+  create = vi.fn().mockResolvedValue(fakeVideoHandle());
+}
+
 describe('IntervalTimerComponent', () => {
   let component: IntervalTimerComponent;
   let fixture: ComponentFixture<IntervalTimerComponent>;
+  let youtubePlayerService: FakeYouTubePlayerService;
 
   beforeEach(async () => {
     vi.useFakeTimers();
@@ -32,7 +42,10 @@ describe('IntervalTimerComponent', () => {
 
     await TestBed.configureTestingModule({
       imports: [IntervalTimerComponent],
+      providers: [{ provide: YouTubePlayerService, useClass: FakeYouTubePlayerService }],
     }).compileComponents();
+
+    youtubePlayerService = TestBed.inject(YouTubePlayerService) as unknown as FakeYouTubePlayerService;
 
     fixture = TestBed.createComponent(IntervalTimerComponent);
     component = fixture.componentInstance;
@@ -300,6 +313,83 @@ describe('IntervalTimerComponent', () => {
     });
   });
 
+  describe('video', () => {
+    function circleContainerQuery() {
+      return fixture.debugElement.query(By.css('#video-panel'));
+    }
+
+    it('does not render the video panel when no video URL is set', () => {
+      start(2, 5, 0);
+      fixture.detectChanges();
+
+      expect(circleContainerQuery()).toBeNull();
+    });
+
+    it('does not render the video panel when the URL is not a valid YouTube URL', () => {
+      component.videoUrl.set('https://example.com/not-youtube');
+      start(2, 5, 0);
+      fixture.detectChanges();
+
+      expect(circleContainerQuery()).toBeNull();
+    });
+
+    it('does not render the video panel before the session starts, even with a valid URL', () => {
+      component.videoUrl.set('https://www.youtube.com/watch?v=lhAEvAOPsiU');
+      fixture.detectChanges();
+
+      expect(circleContainerQuery()).toBeNull();
+      expect(youtubePlayerService.create).not.toHaveBeenCalled();
+    });
+
+    it('creates and plays a player once the session starts with a valid video URL', async () => {
+      const handle = fakeVideoHandle();
+      youtubePlayerService.create.mockResolvedValue(handle);
+      component.videoUrl.set('https://www.youtube.com/watch?v=lhAEvAOPsiU');
+
+      start(2, 5, 0);
+      fixture.detectChanges();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(circleContainerQuery()).not.toBeNull();
+      expect(youtubePlayerService.create).toHaveBeenCalledWith(expect.anything(), 'lhAEvAOPsiU');
+      expect(handle.play).toHaveBeenCalled();
+    });
+
+    it('destroys the player when the session stops', async () => {
+      const handle = fakeVideoHandle();
+      youtubePlayerService.create.mockResolvedValue(handle);
+      component.videoUrl.set('https://www.youtube.com/watch?v=lhAEvAOPsiU');
+
+      start(2, 5, 0);
+      fixture.detectChanges();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      stop();
+      fixture.detectChanges();
+
+      expect(handle.destroy).toHaveBeenCalled();
+    });
+
+    it('pauses and resumes the video in sync with the timer', async () => {
+      const handle = fakeVideoHandle();
+      youtubePlayerService.create.mockResolvedValue(handle);
+      component.videoUrl.set('https://www.youtube.com/watch?v=lhAEvAOPsiU');
+
+      start(2, 5, 0);
+      fixture.detectChanges();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      toggleActive(); // pause
+      expect(handle.pause).toHaveBeenCalled();
+
+      toggleActive(); // resume
+      expect(handle.play).toHaveBeenCalledTimes(2); // initial autoplay + resume
+    });
+  });
+
   describe('reset', () => {
     it('restores all settings to their default values', () => {
       component.rounds.set(3);
@@ -307,6 +397,7 @@ describe('IntervalTimerComponent', () => {
       component.rest.set(15);
       component.playSound.set(false);
       component.exercisesText.set('A\nB');
+      component.videoUrl.set('https://www.youtube.com/watch?v=lhAEvAOPsiU');
       (component as any).newConfigName.set('foo');
       (component as any).selectedConfigName.set('bar');
 
@@ -317,6 +408,7 @@ describe('IntervalTimerComponent', () => {
       expect(component.rest()).toBe(0);
       expect(component.playSound()).toBe(true);
       expect(component.exercisesText()).toBe('');
+      expect(component.videoUrl()).toBe('');
       expect((component as any).newConfigName()).toBe('');
       expect((component as any).selectedConfigName()).toBe('');
     });
@@ -355,6 +447,7 @@ describe('IntervalTimerComponent', () => {
         rest: 5,
         playSound: false,
         exercises: '',
+        videoUrl: '',
       });
     });
 
@@ -478,6 +571,47 @@ describe('IntervalTimerComponent', () => {
       (component as any).loadSelectedConfig();
 
       expect(component.exercisesText()).toBe('');
+    });
+
+    it('includes the video URL when saving', () => {
+      component.rounds.set(4);
+      component.work.set(20);
+      component.rest.set(5);
+      component.videoUrl.set('https://www.youtube.com/watch?v=lhAEvAOPsiU');
+      (component as any).newConfigName.set('WithVideo');
+
+      (component as any).saveCurrentConfig();
+
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      expect(configService.load('WithVideo')?.videoUrl).toBe('https://www.youtube.com/watch?v=lhAEvAOPsiU');
+    });
+
+    it('restores the video URL on load', () => {
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      configService.save({
+        name: 'WithVideo',
+        rounds: 4,
+        work: 20,
+        rest: 5,
+        playSound: true,
+        videoUrl: 'https://www.youtube.com/watch?v=lhAEvAOPsiU',
+      });
+      (component as any).selectedConfigName.set('WithVideo');
+
+      (component as any).loadSelectedConfig();
+
+      expect(component.videoUrl()).toBe('https://www.youtube.com/watch?v=lhAEvAOPsiU');
+    });
+
+    it('resets the video URL to empty when loading a config saved before this field existed', () => {
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      configService.save({ name: 'Legacy', rounds: 5, work: 25, rest: 0, playSound: true });
+      component.videoUrl.set('https://www.youtube.com/watch?v=lhAEvAOPsiU');
+      (component as any).selectedConfigName.set('Legacy');
+
+      (component as any).loadSelectedConfig();
+
+      expect(component.videoUrl()).toBe('');
     });
   });
 });
