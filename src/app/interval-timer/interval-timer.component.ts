@@ -1,6 +1,8 @@
 import { NgClass } from '@angular/common';
 import { Component, computed, effect, ElementRef, inject, model, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
+import { AlertService } from '../components/alert/services/alert.service';
 import { IntervalTimerConfigService } from './services/interval-timer-config.service';
 import { YouTubePlayerService } from './services/youtube-player.service';
 import { playBeep } from './utils/beep';
@@ -147,6 +149,9 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
             <button class="btn btn-sm btn-outline-secondary" (click)="deleteSelectedConfig()"
                     [disabled]="started || !selectedConfigName()">Delete
             </button>
+            <button class="btn btn-sm btn-outline-secondary" id="copy-config-link" (click)="copyConfigLink()"
+                    [disabled]="!selectedConfigName()">Copy Link
+            </button>
             <input type="text" class="form-control form-control-sm w-auto" [ngModel]="newConfigName()"
                    (ngModelChange)="newConfigName.set($event)" [disabled]="started" placeholder="Config name"
                    id="newConfigName" aria-label="Config name">
@@ -243,6 +248,16 @@ export class IntervalTimerComponent {
   protected selectedConfigName = signal('');
   protected newConfigName = signal('');
 
+  private readonly route = inject(ActivatedRoute);
+
+  constructor() {
+    const configName = this.route.snapshot.queryParamMap.get('config');
+    if (configName) {
+      this.selectedConfigName.set(configName);
+      this.loadSelectedConfig();
+    }
+  }
+
   protected loadSelectedConfig(): void {
     const config = this.configService.load(this.selectedConfigName());
     if (!config) {
@@ -283,6 +298,14 @@ export class IntervalTimerComponent {
     }
     this.configService.remove(this.selectedConfigName());
     this.selectedConfigName.set('');
+  }
+
+  private readonly alertService = inject(AlertService);
+
+  protected async copyConfigLink(): Promise<void> {
+    const url = `${location.origin}${location.pathname}?config=${encodeURIComponent(this.selectedConfigName())}`;
+    await navigator.clipboard.writeText(url);
+    this.alertService.showAlert({ type: 'success', text: 'Link copied!' });
   }
 
   private generateDefaultName(): string {

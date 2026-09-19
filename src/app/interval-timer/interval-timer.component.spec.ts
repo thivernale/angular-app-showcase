@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { ActivatedRoute, convertToParamMap, Params } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AlertService } from '../components/alert/services/alert.service';
 import { IntervalTimerComponent } from './interval-timer.component';
 import { IntervalTimerConfigService } from './services/interval-timer-config.service';
 import { YouTubePlayerService } from './services/youtube-player.service';
@@ -28,6 +30,10 @@ class FakeYouTubePlayerService {
   create = vi.fn().mockResolvedValue(fakeVideoHandle());
 }
 
+function activatedRouteStub(queryParams: Params) {
+  return { snapshot: { queryParamMap: convertToParamMap(queryParams) } };
+}
+
 describe('IntervalTimerComponent', () => {
   let component: IntervalTimerComponent;
   let fixture: ComponentFixture<IntervalTimerComponent>;
@@ -39,10 +45,17 @@ describe('IntervalTimerComponent', () => {
     beepStopTimes = [];
     vi.stubGlobal('AudioContext', FakeAudioContext);
     localStorage.clear();
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      configurable: true,
+    });
 
     await TestBed.configureTestingModule({
       imports: [IntervalTimerComponent],
-      providers: [{ provide: YouTubePlayerService, useClass: FakeYouTubePlayerService }],
+      providers: [
+        { provide: YouTubePlayerService, useClass: FakeYouTubePlayerService },
+        { provide: ActivatedRoute, useValue: activatedRouteStub({}) },
+      ],
     }).compileComponents();
 
     youtubePlayerService = TestBed.inject(YouTubePlayerService) as unknown as FakeYouTubePlayerService;
@@ -612,6 +625,97 @@ describe('IntervalTimerComponent', () => {
       (component as any).loadSelectedConfig();
 
       expect(component.videoUrl()).toBe('');
+    });
+  });
+
+  describe('copy link', () => {
+    it('copies a URL with the selected config name as the ?config= param', async () => {
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      configService.save({ name: 'My Workout', rounds: 5, work: 20, rest: 0, playSound: true });
+      (component as any).selectedConfigName.set('My Workout');
+
+      await (component as any).copyConfigLink();
+
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        `${location.origin}${location.pathname}?config=My%20Workout`,
+      );
+    });
+
+    it('shows a success alert after copying', async () => {
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      configService.save({ name: 'My Workout', rounds: 5, work: 20, rest: 0, playSound: true });
+      (component as any).selectedConfigName.set('My Workout');
+      const alertService = TestBed.inject(AlertService);
+      const showAlertSpy = vi.spyOn(alertService, 'showAlert');
+
+      await (component as any).copyConfigLink();
+
+      expect(showAlertSpy).toHaveBeenCalledWith({ type: 'success', text: 'Link copied!' });
+    });
+
+    it('renders a copy-link button that is disabled when no config is selected', () => {
+      fixture.detectChanges();
+
+      const button = fixture.debugElement.query(By.css('#copy-config-link')).nativeElement;
+      expect(button.disabled).toBe(true);
+    });
+
+    it('renders an enabled copy-link button once a config is selected', () => {
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      configService.save({ name: 'My Workout', rounds: 5, work: 20, rest: 0, playSound: true });
+      (component as any).selectedConfigName.set('My Workout');
+      fixture.detectChanges();
+
+      const button = fixture.debugElement.query(By.css('#copy-config-link')).nativeElement;
+      expect(button.disabled).toBe(false);
+    });
+  });
+
+  describe('config URL param', () => {
+    function createWithQueryParams(queryParams: Params) {
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        imports: [IntervalTimerComponent],
+        providers: [
+          { provide: YouTubePlayerService, useClass: FakeYouTubePlayerService },
+          { provide: ActivatedRoute, useValue: activatedRouteStub(queryParams) },
+        ],
+      });
+      return TestBed.createComponent(IntervalTimerComponent).componentInstance;
+    }
+
+    it('loads the config named in the ?config= query param on init', () => {
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        imports: [IntervalTimerComponent],
+        providers: [
+          { provide: YouTubePlayerService, useClass: FakeYouTubePlayerService },
+          { provide: ActivatedRoute, useValue: activatedRouteStub({ config: 'FromUrl' }) },
+        ],
+      });
+      TestBed.inject(IntervalTimerConfigService).save({
+        name: 'FromUrl', rounds: 7, work: 15, rest: 5, playSound: true,
+      });
+
+      const freshComponent = TestBed.createComponent(IntervalTimerComponent).componentInstance;
+
+      expect(freshComponent.rounds()).toBe(7);
+      expect(freshComponent.work()).toBe(15);
+      expect(freshComponent.rest()).toBe(5);
+    });
+
+    it('silently ignores an unknown config name in the query param', () => {
+      const freshComponent = createWithQueryParams({ config: 'DoesNotExist' });
+
+      expect(freshComponent.rounds()).toBe(10);
+      expect(freshComponent.work()).toBe(30);
+      expect(freshComponent.rest()).toBe(0);
+    });
+
+    it('leaves defaults untouched when no config param is present', () => {
+      const freshComponent = createWithQueryParams({});
+
+      expect(freshComponent.rounds()).toBe(10);
     });
   });
 });
