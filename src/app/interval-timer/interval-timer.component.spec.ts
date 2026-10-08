@@ -185,6 +185,88 @@ describe('IntervalTimerComponent', () => {
     expect(component.sessionActive()).toBe(false);
   });
 
+  describe('intro interval', () => {
+    it('starts in the intro phase when an intro duration is configured', () => {
+      component.intro.set(10);
+      start(2, 5, 2);
+
+      expect(component.phase()).toBe('intro');
+      expect(component.phaseRemaining()).toBe(10);
+      expect(component.currentRound()).toBe(1);
+    });
+
+    it('starts directly in the work phase when intro is 0 (default)', () => {
+      component.intro.set(0);
+      start(2, 5, 2);
+
+      expect(component.phase()).toBe('work');
+      expect(component.phaseRemaining()).toBe(5);
+    });
+
+    it('transitions from intro to round 1 of work without incrementing the round', () => {
+      component.intro.set(10);
+      start(2, 5, 2);
+
+      advanceAndTick(10);
+
+      expect(component.phase()).toBe('work');
+      expect(component.currentRound()).toBe(1);
+      expect(component.phaseRemaining()).toBe(5);
+    });
+
+    it('beeps during the intro phase same as any other phase', () => {
+      component.intro.set(5);
+      start(2, 5, 2);
+
+      advanceAndTick(2); // phaseRemaining = 3 -> boundary beep
+
+      expect(beepStopTimes).toContain(0.2);
+    });
+  });
+
+  describe('total duration', () => {
+    it('computes rounds of work plus rest between rounds (no rest after the last round)', () => {
+      component.rounds.set(4);
+      component.work.set(30);
+      component.rest.set(10);
+      component.intro.set(0);
+
+      expect((component as any).totalDurationLabel()).toBe('2:30');
+    });
+
+    it('includes the intro duration', () => {
+      component.rounds.set(1);
+      component.work.set(30);
+      component.rest.set(0);
+      component.intro.set(100);
+
+      expect((component as any).totalDurationLabel()).toBe('2:10');
+    });
+
+    it('formats seconds with a leading zero', () => {
+      component.rounds.set(1);
+      component.work.set(65);
+      component.rest.set(0);
+      component.intro.set(0);
+
+      expect((component as any).totalDurationLabel()).toBe('1:05');
+    });
+
+    it('updates live when a setting changes', () => {
+      component.rounds.set(1);
+      component.work.set(30);
+      component.rest.set(0);
+      component.intro.set(0);
+      fixture.detectChanges();
+
+      component.work.set(45);
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.css('#total-duration')).nativeElement.textContent)
+        .toContain('0:45');
+    });
+  });
+
   describe('countdown circle styling', () => {
     function circleClasses(): DOMTokenList {
       return fixture.debugElement.query(By.css('#countdown-circle')).nativeElement.classList;
@@ -205,6 +287,24 @@ describe('IntervalTimerComponent', () => {
 
       expect(circleClasses()).toContain('bg-secondary-subtle');
       expect(circleClasses()).not.toContain('bg-success-subtle');
+    });
+
+    it('uses the same styling as rest while in the intro phase', () => {
+      component.intro.set(10);
+      start(2, 5, 2);
+      fixture.detectChanges();
+
+      expect(circleClasses()).toContain('bg-secondary-subtle');
+      expect(circleClasses()).not.toContain('bg-success-subtle');
+    });
+
+    it('shows a plain "Get Ready" label during the intro phase, without a round prefix', () => {
+      component.intro.set(10);
+      start(2, 5, 2);
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.css('#phase-label')).nativeElement.textContent).toContain('Get Ready');
+      expect(fixture.debugElement.query(By.css('#phase-label')).nativeElement.textContent).not.toContain('Interval');
     });
   });
 
@@ -310,6 +410,15 @@ describe('IntervalTimerComponent', () => {
       expect((component as any).currentExercise()).toBe('Next: Staple exercise');
     });
 
+    it('shows a "Next:" preview of round 1\'s exercise during the intro phase', () => {
+      component.exercisesText.set('A\nB');
+      component.intro.set(10);
+      start(2, 5, 2);
+
+      expect(component.phase()).toBe('intro');
+      expect((component as any).currentExercise()).toBe('Next: A');
+    });
+
     it('shows a "Next:" preview of round 1\'s exercise before the session is started', () => {
       component.exercisesText.set('A\nB');
 
@@ -411,6 +520,7 @@ describe('IntervalTimerComponent', () => {
       component.playSound.set(false);
       component.exercisesText.set('A\nB');
       component.videoUrl.set('https://www.youtube.com/watch?v=lhAEvAOPsiU');
+      component.intro.set(30);
       (component as any).newConfigName.set('foo');
       (component as any).selectedConfigName.set('bar');
 
@@ -422,16 +532,16 @@ describe('IntervalTimerComponent', () => {
       expect(component.playSound()).toBe(true);
       expect(component.exercisesText()).toBe('');
       expect(component.videoUrl()).toBe('');
+      expect(component.intro()).toBe(0);
       expect((component as any).newConfigName()).toBe('');
       expect((component as any).selectedConfigName()).toBe('');
     });
 
-    it('renders a reset button that is disabled while the session is running', () => {
+    it('hides the reset button while the session is running', () => {
       start(2, 5, 0);
       fixture.detectChanges();
 
-      const resetButton = fixture.debugElement.query(By.css('#reset-settings')).nativeElement;
-      expect(resetButton.disabled).toBe(true);
+      expect(fixture.debugElement.query(By.css('#reset-settings'))).toBeNull();
     });
 
     it('renders an enabled reset button when the session is not running', () => {
@@ -461,6 +571,7 @@ describe('IntervalTimerComponent', () => {
         playSound: false,
         exercises: '',
         videoUrl: '',
+        intro: 0,
       });
     });
 
@@ -625,6 +736,40 @@ describe('IntervalTimerComponent', () => {
       (component as any).loadSelectedConfig();
 
       expect(component.videoUrl()).toBe('');
+    });
+
+    it('includes the intro duration when saving', () => {
+      component.rounds.set(4);
+      component.work.set(20);
+      component.rest.set(5);
+      component.intro.set(15);
+      (component as any).newConfigName.set('WithIntro');
+
+      (component as any).saveCurrentConfig();
+
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      expect(configService.load('WithIntro')?.intro).toBe(15);
+    });
+
+    it('restores the intro duration on load', () => {
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      configService.save({ name: 'WithIntro', rounds: 4, work: 20, rest: 5, playSound: true, intro: 15 });
+      (component as any).selectedConfigName.set('WithIntro');
+
+      (component as any).loadSelectedConfig();
+
+      expect(component.intro()).toBe(15);
+    });
+
+    it('resets the intro duration to 0 when loading a config saved before this field existed', () => {
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      configService.save({ name: 'Legacy', rounds: 5, work: 25, rest: 0, playSound: true });
+      component.intro.set(15);
+      (component as any).selectedConfigName.set('Legacy');
+
+      (component as any).loadSelectedConfig();
+
+      expect(component.intro()).toBe(0);
     });
   });
 

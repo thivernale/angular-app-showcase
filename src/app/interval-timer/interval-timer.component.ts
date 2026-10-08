@@ -29,7 +29,7 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
             class="p-5 display-1 shadow-lg fw-bold rounded-circle d-flex justify-content-center align-items-center"
             [ngClass]="{
               'text-success bg-success-subtle': phase() === 'work',
-              'text-secondary bg-secondary-subtle': phase() === 'rest',
+              'text-secondary bg-secondary-subtle': phase() === 'rest' || phase() === 'intro',
               'bg-white': remaining() === 0
             }"
             style="width: 200px; height: 200px;"
@@ -37,8 +37,12 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
             {{ remaining() }}
           </div>
           @if (started) {
-            <div class="pt-3 fs-3 text-center">
-              Interval {{ currentRound() }} of {{ rounds() }} — {{ phase() === 'work' ? 'Work' : 'Rest' }}
+            <div id="phase-label" class="pt-3 fs-3 text-center">
+              @if (phase() === 'intro') {
+                Get Ready
+              } @else {
+                Interval {{ currentRound() }} of {{ rounds() }} — {{ phase() === 'work' ? 'Work' : 'Rest' }}
+              }
             </div>
           }
         </div>
@@ -61,7 +65,7 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
       <div class="d-flex flex-column flex-lg-row gap-4 justify-content-center align-items-start">
         <div class="d-flex flex-column flex-wrap gap-4 justify-content-center align-items-center">
           <div
-            class="text-center gap-2 d-flex flex-column flex-md-row my-3 align-items-center container-fluid justify-content-center">
+            class="text-center gap-2 d-flex flex-column flex-wrap flex-md-row my-3 align-items-center container-fluid justify-content-start">
             <div class="form-floating col-md-3 col-6 flex-shrink-1">
               <input
                 type="number"
@@ -104,6 +108,25 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
               >
               <label for="rest" class="form-label">Rest duration</label>
             </div>
+            <div class="form-floating col-md-3 col-6 flex-shrink-1">
+              <input
+                type="number"
+                class="form-control"
+                [ngModel]="intro()" (ngModelChange)="intro.set($event)"
+                [disabled]="started"
+                [max]="300"
+                [min]="0"
+                [step]="5"
+                placeholder="Get Ready"
+                id="intro"
+              >
+              <label for="intro" class="form-label">Get Ready</label>
+            </div>
+            <label class="d-flex gap-2 align-items-center col-md-3 col-6 px-2">
+              <input type="checkbox" class="form-check-input" name="playSound" [ngModel]="playSound()"
+                     (ngModelChange)="playSound.set($event)">
+              <span class="form-check-label">Sound</span>
+            </label>
             <button
               class="btn"
               id="toggle-started"
@@ -118,23 +141,22 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
                 (click)="toggleTimerActive()"
               >{{ active ? 'Pause' : 'Resume' }}
               </button>
+            } @else {
+              <button
+                class="btn btn-outline-secondary"
+                id="reset-settings"
+                (click)="resetSettings()"
+              >Reset
+              </button>
             }
-            <label class="d-flex gap-2 align-items-center">
-              <input type="checkbox" class="form-check-input" name="playSound" [ngModel]="playSound()"
-                     (ngModelChange)="playSound.set($event)">
-              <span class="form-check-label">Sound</span>
-            </label>
-            <button
-              class="btn btn-outline-secondary"
-              id="reset-settings"
-              (click)="resetSettings()"
-              [disabled]="started"
-            >Reset
-            </button>
+          </div>
+
+          <div id="total-duration" class="text-body-secondary col-12 text-start p-2 fs-5 border-top">
+            Total duration: {{ totalDurationLabel() }}
           </div>
 
           <div
-            class="d-flex flex-column flex-lg-row gap-2 align-items-center justify-content-center w-100 mt-4 pt-3 border-top small text-body-secondary">
+            class="d-flex flex-column flex-wrap flex-lg-row gap-2 align-items-center justify-content-start w-100 pt-3 border-top small text-body-secondary">
             <select class="form-select form-select-sm w-auto" [ngModel]="selectedConfigName()"
                     (ngModelChange)="selectedConfigName.set($event)" [disabled]="started" id="savedConfigs"
                     aria-label="Saved configurations">
@@ -193,6 +215,7 @@ export class IntervalTimerComponent {
   rounds = model(10);
   work = model(30);
   rest = model(0);
+  intro = model(0);
   playSound = model(true);
   exercisesText = model('');
   videoUrl = model('');
@@ -202,13 +225,20 @@ export class IntervalTimerComponent {
   private readonly youtubePlayerService = inject(YouTubePlayerService);
   private videoPlayer: YouTubePlayerHandle | null = null;
 
-  phase = signal<'work' | 'rest'>('work');
+  phase = signal<'intro' | 'work' | 'rest'>('work');
   currentRound = signal(1);
   phaseRemaining = signal(0);
   sessionActive = signal(false);
   isTimerActive = signal(false);
 
   remaining = computed(() => this.phaseRemaining());
+
+  protected readonly totalDurationLabel = computed(() => {
+    const totalSeconds = this.intro() + this.rounds() * this.work() + Math.max(0, this.rounds() - 1) * this.rest();
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  });
 
   private readonly exerciseLines = computed<string[]>(() => {
     const text = this.exercisesText();
@@ -229,10 +259,10 @@ export class IntervalTimerComponent {
     }
 
     const phase = this.phase();
-    const round = phase === 'work' ? this.currentRound() : this.currentRound() + 1;
+    const round = phase === 'rest' ? this.currentRound() + 1 : this.currentRound();
     const label = this.exerciseLabelForRound(round, lines);
 
-    return phase === 'rest' ? `Next: ${label}` : label;
+    return phase === 'work' ? label : `Next: ${label}`;
   });
 
   private exerciseLabelForRound(round: number, lines: string[]): string {
@@ -269,6 +299,7 @@ export class IntervalTimerComponent {
     this.playSound.set(config.playSound);
     this.exercisesText.set(config.exercises ?? '');
     this.videoUrl.set(config.videoUrl ?? '');
+    this.intro.set(config.intro ?? 0);
   }
 
   protected saveCurrentConfig(): void {
@@ -284,6 +315,7 @@ export class IntervalTimerComponent {
       playSound: this.playSound(),
       exercises: this.exercisesText(),
       videoUrl: this.videoUrl(),
+      intro: this.intro(),
     });
     this.newConfigName.set('');
 
@@ -321,6 +353,7 @@ export class IntervalTimerComponent {
     this.playSound.set(true);
     this.exercisesText.set('');
     this.videoUrl.set('');
+    this.intro.set(0);
     this.newConfigName.set('');
     this.selectedConfigName.set('');
   }
@@ -335,9 +368,14 @@ export class IntervalTimerComponent {
       this.phaseRemaining.set(0);
     } else {
       // start timer
-      this.phase.set('work');
       this.currentRound.set(1);
-      this.phaseRemaining.set(this.work());
+      if (this.intro() > 0) {
+        this.phase.set('intro');
+        this.phaseRemaining.set(this.intro());
+      } else {
+        this.phase.set('work');
+        this.phaseRemaining.set(this.work());
+      }
       this.sessionActive.set(true);
       this.isTimerActive.set(true);
     }
@@ -363,6 +401,13 @@ export class IntervalTimerComponent {
   };
 
   private advancePhase() {
+    if (this.phase() === 'intro') {
+      this.phase.set('work');
+      this.phaseRemaining.set(this.work());
+      this.targetTime = Date.now() + this.work() * 1000;
+      return;
+    }
+
     const isLastRound = this.currentRound() >= this.rounds();
 
     if (this.phase() === 'work') {
