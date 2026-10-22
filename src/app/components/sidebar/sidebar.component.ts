@@ -9,12 +9,7 @@ import { ClickOutsideDirective } from '../../directives/click-outside.directive'
 
 @Component({
   selector: 'app-sidebar',
-  imports: [
-    RouterLink,
-    RouterLinkActive,
-    NgClass,
-    ClickOutsideDirective
-  ],
+  imports: [RouterLink, RouterLinkActive, NgClass, ClickOutsideDirective],
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.css',
 })
@@ -26,7 +21,9 @@ export class SidebarComponent {
   protected readonly authService = inject(AuthService);
   private readonly fetchCurrentUserSignal = toSignal(this.authService.getCurrentUser());
   protected currentUserSignal = computed(() =>
-    this.authService.currentUserSignal() === undefined ? this.fetchCurrentUserSignal() : this.authService.currentUserSignal()
+    this.authService.currentUserSignal() === undefined
+      ? this.fetchCurrentUserSignal()
+      : this.authService.currentUserSignal(),
   );
 
   toggleSidebar() {

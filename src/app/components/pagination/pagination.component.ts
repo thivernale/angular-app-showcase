@@ -3,9 +3,7 @@ import { Component, computed, input, output } from '@angular/core';
 
 @Component({
   selector: 'app-pagination',
-  imports: [
-    NgClass
-  ],
+  imports: [NgClass],
   templateUrl: './pagination.component.html',
   styleUrl: './pagination.component.css',
 })
@@ -22,7 +20,8 @@ export class PaginationComponent {
 
   pages = computed<number[]>(() => {
     const start = Math.max(1, this.currentPage() - this.numPagesBeforeAfter);
-    const numPages = Math.min(this.totalPages(), this.currentPage() + this.numPagesBeforeAfter) - start + 1;
+    const numPages =
+      Math.min(this.totalPages(), this.currentPage() + this.numPagesBeforeAfter) - start + 1;
     return this.range(numPages, start);
   });
 

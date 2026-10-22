@@ -4,9 +4,17 @@ import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map, startWith, switchMap } from 'rxjs';
 import { PaginationComponent } from '../components/pagination/pagination.component';
-import { FilterSubmitEvent, NewsFilterFormComponent } from './components/filter-form/news-filter-form.component';
+import {
+  FilterSubmitEvent,
+  NewsFilterFormComponent,
+} from './components/filter-form/news-filter-form.component';
 import { NewsService } from './services/news.service';
-import { ArticlesResponse, NewsResult, SearchParams, TopHeadlinesParams } from './types/article.interface';
+import {
+  ArticlesResponse,
+  NewsResult,
+  SearchParams,
+  TopHeadlinesParams,
+} from './types/article.interface';
 import { INITIAL_SEARCH_QUERY, SearchType } from './types/constants';
 
 function toNewsResult(r: ArticlesResponse): NewsResult {
@@ -45,24 +53,23 @@ export class NewsComponent {
     toObservable(this.querySignal).pipe(
       switchMap(({ type, params }) =>
         (type === 'top-headlines'
-            ? this.newsService.searchTopHeadlines(params as TopHeadlinesParams)
-            : this.newsService.searchEverything(params)
-        )
-          .pipe(
-            map(toNewsResult),
-            // Add 1000ms delay to simulate a slow network
-            // delay(1000),
-            // This emits BEFORE the search request completes,
-            // every time querySignal changes.
-            startWith({ state: 'loading' } as NewsResult),
-          )
+          ? this.newsService.searchTopHeadlines(params as TopHeadlinesParams)
+          : this.newsService.searchEverything(params)
+        ).pipe(
+          map(toNewsResult),
+          // Add 1000ms delay to simulate a slow network
+          // delay(1000),
+          // This emits BEFORE the search request completes,
+          // every time querySignal changes.
+          startWith({ state: 'loading' } as NewsResult),
+        ),
       ),
     ),
-    { initialValue: { state: 'loading' } as NewsResult }
+    { initialValue: { state: 'loading' } as NewsResult },
   );
 
   private updateSearchParams(delta: Partial<TopHeadlinesParams>): void {
-    this.searchParamsSignal.update(params => {
+    this.searchParamsSignal.update((params) => {
       const next = { ...params } as TopHeadlinesParams;
       for (const key of Object.keys(delta) as (keyof TopHeadlinesParams)[]) {
         const value = delta[key];

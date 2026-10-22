@@ -5,10 +5,6 @@ import { MainComponent } from './components/main/main.component';
 
 @Component({
   templateUrl: './todos.component.html',
-  imports: [
-    HeaderComponent,
-    FooterComponent,
-    MainComponent
-  ]
+  imports: [HeaderComponent, FooterComponent, MainComponent],
 })
-export class TodosComponent { }
+export class TodosComponent {}

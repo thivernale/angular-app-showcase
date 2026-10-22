@@ -6,10 +6,7 @@ import { AlertService } from './services/alert.service';
 
 @Component({
   selector: 'app-alert',
-  imports: [
-    NgClass,
-    AsyncPipe
-  ],
+  imports: [NgClass, AsyncPipe],
   templateUrl: './alert.component.html',
   styleUrl: './alert.component.css',
 })
@@ -18,12 +15,12 @@ export class AlertComponent {
 
   alert$ = this.alertService.alert$.pipe(
     takeUntilDestroyed(),
-    switchMap(alert =>
+    switchMap((alert) =>
       // Start with the alert, then switch to null after 5 seconds
       timer(5000).pipe(
         map(() => null),
-        startWith(alert)
-      )
-    )
+        startWith(alert),
+      ),
+    ),
   );
 }

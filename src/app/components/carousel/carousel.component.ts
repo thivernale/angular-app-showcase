@@ -4,10 +4,7 @@ import { Image } from './types/image.interface';
 
 @Component({
   selector: 'app-carousel',
-  imports: [
-    NgStyle,
-    NgClass
-  ],
+  imports: [NgStyle, NgClass],
   templateUrl: './carousel.component.html',
   styleUrl: './carousel.component.css',
 })
@@ -22,7 +19,7 @@ export class CarouselComponent {
   }));
   autoplay = signal(true);
   timeoutId = signal<number | undefined>(undefined);
-  timeoutEffect = effect(onCleanup => {
+  timeoutEffect = effect((onCleanup) => {
     this.currentIndex();
     if (!this.autoplay()) {
       return;
@@ -33,23 +30,21 @@ export class CarouselComponent {
       this.goToNext();
     }, 2000);
     untracked(() => this.timeoutId.set(id));
-    onCleanup(() =>
-      window.clearTimeout(id)
-    );
+    onCleanup(() => window.clearTimeout(id));
   });
 
   goToPrev() {
-    this.currentIndex.update(i => (this.numImages() + i - 1) % (this.numImages()));
+    this.currentIndex.update((i) => (this.numImages() + i - 1) % this.numImages());
   }
 
   goToNext() {
-    this.currentIndex.update(i => (i + 1) % (this.numImages()));
+    this.currentIndex.update((i) => (i + 1) % this.numImages());
   }
 
   calcImageStyle(image: Image) {
     return {
       backgroundImage: `url(${image.src})`,
-      width: `${this.parentWidth()}px`
+      width: `${this.parentWidth()}px`,
     };
   }
 
@@ -58,6 +53,6 @@ export class CarouselComponent {
   }
 
   toggleAutoplay() {
-    this.autoplay.update(v => !v);
+    this.autoplay.update((v) => !v);
   }
 }

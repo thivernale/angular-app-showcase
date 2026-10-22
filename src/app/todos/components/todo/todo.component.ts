@@ -1,14 +1,21 @@
 import { NgClass } from '@angular/common';
-import { Component, effect, ElementRef, inject, input, linkedSignal, output, viewChild, } from '@angular/core';
+import {
+  Component,
+  effect,
+  ElementRef,
+  inject,
+  input,
+  linkedSignal,
+  output,
+  viewChild,
+} from '@angular/core';
 import { TodosService } from '../../services/todos.service';
 import { Todo } from '../../types/todo.interface';
 
 @Component({
   selector: 'app-todo',
   templateUrl: './todo.component.html',
-  imports: [
-    NgClass
-  ]
+  imports: [NgClass],
 })
 export class TodoComponent {
   private readonly service = inject(TodosService);

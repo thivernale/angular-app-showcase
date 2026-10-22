@@ -6,9 +6,7 @@ import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-login',
-  imports: [
-    ReactiveFormsModule
-  ],
+  imports: [ReactiveFormsModule],
   templateUrl: './login.component.html',
   styleUrl: './login.component.css',
 })
@@ -32,9 +30,9 @@ export class LoginComponent {
       error: (error: Error) => {
         this.alertService.showAlert({
           type: 'danger',
-          text: `Error logging in user: ${error.message}`
-        })
-      }
+          text: `Error logging in user: ${error.message}`,
+        });
+      },
     });
   }
 }

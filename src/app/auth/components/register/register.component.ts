@@ -1,14 +1,12 @@
 import { Component, inject } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from "@angular/forms";
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AlertService } from '../../../components/alert/services/alert.service';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-register',
-  imports: [
-    ReactiveFormsModule
-  ],
+  imports: [ReactiveFormsModule],
   templateUrl: './register.component.html',
   styleUrl: './register.component.css',
 })
@@ -33,9 +31,9 @@ export class RegisterComponent {
       error: (error: Error) => {
         this.alertService.showAlert({
           type: 'danger',
-          text: `Error registering user: ${error.message}`
-        })
-      }
+          text: `Error registering user: ${error.message}`,
+        });
+      },
     });
   }
 }
