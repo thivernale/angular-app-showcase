@@ -16,8 +16,12 @@ npm run test:docker    # Run tests inside Docker (no local Node/npm required)
 
 To run a single test file:
 ```bash
-npx vitest run src/app/path/to/file.spec.ts
+npm test -- --no-watch --include src/app/path/to/file.spec.ts
 ```
+
+Tests run through Angular's `@angular/build:unit-test` builder, which sets up TestBed and jsdom — don't invoke `npx vitest` directly, it skips that setup.
+
+`.npmrc` sets `node-options=--no-experimental-webstorage`. Node 25+ defines a native `globalThis.localStorage` that is `undefined` without `--localstorage-file` and shadows jsdom's implementation, breaking every spec that touches `localStorage`. Always run tests via `npm` scripts so this flag applies (plain `npx ng test` bypasses `.npmrc`).
 
 ### Docker
 
