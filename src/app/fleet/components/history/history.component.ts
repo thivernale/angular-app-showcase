@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { environment } from '../../../../environments/environment';
 import { RegionService } from '../../services/region.service';
@@ -10,16 +10,13 @@ import { LogEntry } from '../../types/log-entry';
   templateUrl: './history.component.html',
 })
 export class HistoryComponent {
-  protected logs: LogEntry[] = [];
+  protected readonly logs = signal<LogEntry[]>([]);
   private readonly vehicleService = inject(VehicleService);
   private readonly regionService = inject(RegionService);
 
   constructor() {
-    this.vehicleService.log$.pipe(takeUntilDestroyed()).subscribe(log => {
-      this.logs.push(log);
-      if (this.logs.length > environment.history_steps) {
-        this.logs.shift();
-      }
+    this.vehicleService.log$.pipe(takeUntilDestroyed()).subscribe((log) => {
+      this.logs.update((logs) => [...logs, log].slice(-environment.history_steps));
     });
   }
 
