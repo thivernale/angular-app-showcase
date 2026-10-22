@@ -6,11 +6,7 @@ import { VehicleService } from './services/vehicle.service';
 
 @Component({
   selector: 'app-fleet-navigator',
-  imports: [
-    AsyncPipe,
-    VehicleComponent,
-    HistoryComponent
-  ],
+  imports: [AsyncPipe, VehicleComponent, HistoryComponent],
   templateUrl: './fleet-navigator.component.html',
 })
 export class FleetNavigatorComponent {

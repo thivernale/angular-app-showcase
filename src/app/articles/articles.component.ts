@@ -6,14 +6,9 @@ import { RouterLink } from '@angular/router';
 import { switchMap } from 'rxjs';
 import { ArticleService } from './services/articles.service';
 
-
 @Component({
   selector: 'app-articles',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    DatePipe
-  ],
+  imports: [ReactiveFormsModule, RouterLink, DatePipe],
   templateUrl: './articles.component.html',
 })
 export class ArticlesComponent {
@@ -25,10 +20,8 @@ export class ArticlesComponent {
   private readonly searchTextSignal = signal<string>('');
   private readonly articleService = inject(ArticleService);
   protected readonly articlesSignal = toSignal(
-    toObservable(this.searchTextSignal).pipe(
-      switchMap(text => this.articleService.search(text))
-    ),
-    { initialValue: [] }
+    toObservable(this.searchTextSignal).pipe(switchMap((text) => this.articleService.search(text))),
+    { initialValue: [] },
   );
 
   protected onSubmit() {

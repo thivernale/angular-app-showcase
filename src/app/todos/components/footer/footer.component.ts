@@ -6,9 +6,7 @@ import { StateFilter, StateFilterLabels } from '../../types/state-filter';
 @Component({
   selector: 'app-footer',
   templateUrl: './footer.component.html',
-  imports: [
-    NgClass
-  ]
+  imports: [NgClass],
 })
 export class FooterComponent {
   private readonly service = inject(TodosService);
@@ -16,7 +14,9 @@ export class FooterComponent {
 
   protected readonly stateFilterEntries = Object.entries(StateFilterLabels);
 
-  protected numActiveTodos = computed(() => this.service.todos().filter(t => !t.isCompleted).length);
+  protected numActiveTodos = computed(
+    () => this.service.todos().filter((t) => !t.isCompleted).length,
+  );
   protected noTodos = computed(() => this.service.todos().length === 0);
 
   protected changeFilter(filter: string): void {

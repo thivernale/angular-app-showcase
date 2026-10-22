@@ -1,5 +1,14 @@
 import { NgClass } from '@angular/common';
-import { Component, computed, effect, ElementRef, inject, model, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  model,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { AlertService } from '../components/alert/services/alert.service';
@@ -11,15 +20,11 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
 
 @Component({
   selector: 'app-interval-timer',
-  imports: [
-    FormsModule,
-    NgClass,
-  ],
+  imports: [FormsModule, NgClass],
   template: `
     @let active = isTimerActive();
     @let started = sessionActive();
     <div class="d-flex flex-column gap-4 mx-auto" style="max-width: 1000px;">
-
       <!-- Display: title + counter on the left, current exercise prominently top-right -->
       <div class="d-flex flex-column flex-lg-row gap-4 align-items-center align-items-lg-start">
         <div class="d-flex flex-column align-items-center w-100 flex-lg-fill">
@@ -30,7 +35,7 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
             [ngClass]="{
               'text-success bg-success-subtle': phase() === 'work',
               'text-secondary bg-secondary-subtle': phase() === 'rest' || phase() === 'intro',
-              'bg-white': remaining() === 0
+              'bg-white': remaining() === 0,
             }"
             style="width: 200px; height: 200px;"
           >
@@ -41,15 +46,20 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
               @if (phase() === 'intro') {
                 Get Ready
               } @else {
-                Interval {{ currentRound() }} of {{ rounds() }} — {{ phase() === 'work' ? 'Work' : 'Rest' }}
+                Interval {{ currentRound() }} of {{ rounds() }} —
+                {{ phase() === 'work' ? 'Work' : 'Rest' }}
               }
             </div>
           }
         </div>
-        <div class="d-flex flex-column align-items-center align-items-lg-end justify-content-start w-100 flex-lg-fill">
+        <div
+          class="d-flex flex-column align-items-center align-items-lg-end justify-content-start w-100 flex-lg-fill"
+        >
           @if (currentExercise(); as exercise) {
-            <div id="exercise-line"
-                 class="fs-2 fw-normal text-secondary text-center text-lg-end px-4 py-3 bg-secondary-subtle border border-secondary-subtle rounded-3 shadow-sm">
+            <div
+              id="exercise-line"
+              class="fs-2 fw-normal text-secondary text-center text-lg-end px-4 py-3 bg-secondary-subtle border border-secondary-subtle rounded-3 shadow-sm"
+            >
               {{ exercise }}
             </div>
           }
@@ -65,66 +75,76 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
       <div class="d-flex flex-column flex-lg-row gap-4 justify-content-center align-items-start">
         <div class="d-flex flex-column flex-wrap gap-4 justify-content-center align-items-center">
           <div
-            class="text-center gap-2 d-flex flex-column flex-wrap flex-md-row my-3 align-items-center container-fluid justify-content-start">
+            class="text-center gap-2 d-flex flex-column flex-wrap flex-md-row my-3 align-items-center container-fluid justify-content-start"
+          >
             <div class="form-floating col-md-3 col-6 flex-shrink-1">
               <input
                 type="number"
                 class="form-control"
-                [ngModel]="rounds()" (ngModelChange)="rounds.set($event)"
+                [ngModel]="rounds()"
+                (ngModelChange)="rounds.set($event)"
                 [disabled]="started"
                 [max]="60"
                 [min]="0"
                 [step]="1"
                 placeholder="Rounds"
                 id="rounds"
-              >
+              />
               <label for="rounds" class="form-label">Number of rounds</label>
             </div>
             <div class="form-floating col-md-3 col-6 flex-shrink-1">
               <input
                 type="number"
                 class="form-control"
-                [ngModel]="work()" (ngModelChange)="work.set($event)"
+                [ngModel]="work()"
+                (ngModelChange)="work.set($event)"
                 [disabled]="started"
                 [max]="120"
                 [min]="10"
                 [step]="5"
                 placeholder="Work"
                 id="work"
-              >
+              />
               <label for="work" class="form-label">Work duration</label>
             </div>
             <div class="form-floating col-md-3 col-6 flex-shrink-1">
               <input
                 type="number"
                 class="form-control"
-                [ngModel]="rest()" (ngModelChange)="rest.set($event)"
+                [ngModel]="rest()"
+                (ngModelChange)="rest.set($event)"
                 [disabled]="started"
                 [max]="60"
                 [min]="0"
                 [step]="5"
                 placeholder="Rest"
                 id="rest"
-              >
+              />
               <label for="rest" class="form-label">Rest duration</label>
             </div>
             <div class="form-floating col-md-3 col-6 flex-shrink-1">
               <input
                 type="number"
                 class="form-control"
-                [ngModel]="intro()" (ngModelChange)="intro.set($event)"
+                [ngModel]="intro()"
+                (ngModelChange)="intro.set($event)"
                 [disabled]="started"
                 [max]="300"
                 [min]="0"
                 [step]="5"
                 placeholder="Get Ready"
                 id="intro"
-              >
+              />
               <label for="intro" class="form-label">Get Ready</label>
             </div>
             <label class="d-flex gap-2 align-items-center col-md-3 col-6 px-2">
-              <input type="checkbox" class="form-check-input" name="playSound" [ngModel]="playSound()"
-                     (ngModelChange)="playSound.set($event)">
+              <input
+                type="checkbox"
+                class="form-check-input"
+                name="playSound"
+                [ngModel]="playSound()"
+                (ngModelChange)="playSound.set($event)"
+              />
               <span class="form-check-label">Sound</span>
             </label>
             <button
@@ -132,77 +152,115 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
               id="toggle-started"
               (click)="toggleTimerStarted()"
               [ngClass]="started ? 'btn-outline-primary' : 'btn-primary'"
-            >{{ started ? 'Stop' : 'Start' }}
+            >
+              {{ started ? 'Stop' : 'Start' }}
             </button>
             @if (started) {
-              <button
-                class="btn btn-primary"
-                id="toggle-active"
-                (click)="toggleTimerActive()"
-              >{{ active ? 'Pause' : 'Resume' }}
+              <button class="btn btn-primary" id="toggle-active" (click)="toggleTimerActive()">
+                {{ active ? 'Pause' : 'Resume' }}
               </button>
             } @else {
               <button
                 class="btn btn-outline-secondary"
                 id="reset-settings"
                 (click)="resetSettings()"
-              >Reset
+              >
+                Reset
               </button>
             }
           </div>
 
-          <div id="total-duration" class="text-body-secondary col-12 text-start p-2 fs-5 border-top">
+          <div
+            id="total-duration"
+            class="text-body-secondary col-12 text-start p-2 fs-5 border-top"
+          >
             Total duration: {{ totalDurationLabel() }}
           </div>
 
           <div
-            class="d-flex flex-column flex-wrap flex-lg-row gap-2 align-items-center justify-content-start w-100 pt-3 border-top small text-body-secondary">
-            <select class="form-select form-select-sm w-auto" [ngModel]="selectedConfigName()"
-                    (ngModelChange)="selectedConfigName.set($event)" [disabled]="started" id="savedConfigs"
-                    aria-label="Saved configurations">
+            class="d-flex flex-column flex-wrap flex-lg-row gap-2 align-items-center justify-content-start w-100 pt-3 border-top small text-body-secondary"
+          >
+            <select
+              class="form-select form-select-sm w-auto"
+              [ngModel]="selectedConfigName()"
+              (ngModelChange)="selectedConfigName.set($event)"
+              [disabled]="started"
+              id="savedConfigs"
+              aria-label="Saved configurations"
+            >
               <option value="" disabled>Saved configs…</option>
               @for (c of savedConfigs(); track c.name) {
                 <option [value]="c.name">{{ c.name }}</option>
               }
             </select>
-            <button class="btn btn-sm btn-outline-secondary" (click)="loadSelectedConfig()"
-                    [disabled]="started || !selectedConfigName()">Load
+            <button
+              class="btn btn-sm btn-outline-secondary"
+              (click)="loadSelectedConfig()"
+              [disabled]="started || !selectedConfigName()"
+            >
+              Load
             </button>
-            <button class="btn btn-sm btn-outline-secondary" (click)="deleteSelectedConfig()"
-                    [disabled]="started || !selectedConfigName()">Delete
+            <button
+              class="btn btn-sm btn-outline-secondary"
+              (click)="deleteSelectedConfig()"
+              [disabled]="started || !selectedConfigName()"
+            >
+              Delete
             </button>
-            <button class="btn btn-sm btn-outline-secondary" id="copy-config-link" (click)="copyConfigLink()"
-                    [disabled]="!selectedConfigName()">Copy Link
+            <button
+              class="btn btn-sm btn-outline-secondary"
+              id="copy-config-link"
+              (click)="copyConfigLink()"
+              [disabled]="!selectedConfigName()"
+            >
+              Copy Link
             </button>
-            <input type="text" class="form-control form-control-sm w-auto" [ngModel]="newConfigName()"
-                   (ngModelChange)="newConfigName.set($event)" [disabled]="started" placeholder="Config name"
-                   id="newConfigName" aria-label="Config name">
-            <button class="btn btn-sm btn-outline-secondary" (click)="saveCurrentConfig()"
-                    [disabled]="started">Save
+            <input
+              type="text"
+              class="form-control form-control-sm w-auto"
+              [ngModel]="newConfigName()"
+              (ngModelChange)="newConfigName.set($event)"
+              [disabled]="started"
+              placeholder="Config name"
+              id="newConfigName"
+              aria-label="Config name"
+            />
+            <button
+              class="btn btn-sm btn-outline-secondary"
+              (click)="saveCurrentConfig()"
+              [disabled]="started"
+            >
+              Save
             </button>
           </div>
         </div>
 
         <div class="d-flex flex-column gap-2 w-100" style="max-width: 320px;">
-          <label for="exercises" class="form-label fw-semibold">Exercises <span class="text-body-secondary fw-normal">(optional)</span></label>
+          <label for="exercises" class="form-label fw-semibold"
+            >Exercises <span class="text-body-secondary fw-normal">(optional)</span></label
+          >
           <textarea
             class="form-control"
             id="exercises"
             rows="8"
-            [ngModel]="exercisesText()" (ngModelChange)="exercisesText.set($event)"
+            [ngModel]="exercisesText()"
+            (ngModelChange)="exercisesText.set($event)"
             [disabled]="started"
             placeholder="One exercise per line, e.g.&#10;Push-ups&#10;Squats&#10;Plank"
           ></textarea>
 
-          <label for="videoUrl" class="form-label fw-semibold">Video <span class="text-body-secondary fw-normal">(optional)</span></label>
+          <label for="videoUrl" class="form-label fw-semibold"
+            >Video <span class="text-body-secondary fw-normal">(optional)</span></label
+          >
           <input
             type="text"
             class="form-control"
             id="videoUrl"
-            [ngModel]="videoUrl()" (ngModelChange)="videoUrl.set($event)"
+            [ngModel]="videoUrl()"
+            (ngModelChange)="videoUrl.set($event)"
             [disabled]="started"
             placeholder="YouTube video, Shorts, or share link"
-          >
+          />
           @if (videoUrl() && !videoId()) {
             <div class="form-text text-danger">Enter a valid YouTube URL</div>
           }
@@ -221,7 +279,8 @@ export class IntervalTimerComponent {
   videoUrl = model('');
 
   protected readonly videoId = computed(() => extractYouTubeVideoId(this.videoUrl()));
-  private readonly videoPlayerContainer = viewChild<ElementRef<HTMLDivElement>>('videoPlayerContainer');
+  private readonly videoPlayerContainer =
+    viewChild<ElementRef<HTMLDivElement>>('videoPlayerContainer');
   private readonly youtubePlayerService = inject(YouTubePlayerService);
   private videoPlayer: YouTubePlayerHandle | null = null;
 
@@ -234,7 +293,8 @@ export class IntervalTimerComponent {
   remaining = computed(() => this.phaseRemaining());
 
   protected readonly totalDurationLabel = computed(() => {
-    const totalSeconds = this.intro() + this.rounds() * this.work() + Math.max(0, this.rounds() - 1) * this.rest();
+    const totalSeconds =
+      this.intro() + this.rounds() * this.work() + Math.max(0, this.rounds() - 1) * this.rest();
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}:${String(seconds).padStart(2, '0')}`;
@@ -382,7 +442,7 @@ export class IntervalTimerComponent {
   }
 
   protected toggleTimerActive() {
-    this.isTimerActive.update(active => !active);
+    this.isTimerActive.update((active) => !active);
   }
 
   private readonly tick = () => {
@@ -429,7 +489,7 @@ export class IntervalTimerComponent {
   }
 
   private startNextWorkRound() {
-    this.currentRound.update(round => round + 1);
+    this.currentRound.update((round) => round + 1);
     this.phase.set('work');
     this.phaseRemaining.set(this.work());
     this.targetTime = Date.now() + this.work() * 1000;
@@ -453,7 +513,7 @@ export class IntervalTimerComponent {
         this.timerInterval = null;
       }
     } else if (!this.timerInterval) {
-      this.targetTime = Date.now() + (this.phaseRemaining() * 1000);
+      this.targetTime = Date.now() + this.phaseRemaining() * 1000;
       this.timerInterval = setInterval(this.tick, 1_000);
     }
 
@@ -471,7 +531,7 @@ export class IntervalTimerComponent {
     const container = this.videoPlayerContainer();
 
     if (running && id && container) {
-      this.youtubePlayerService.create(container.nativeElement, id).then(handle => {
+      this.youtubePlayerService.create(container.nativeElement, id).then((handle) => {
         this.videoPlayer = handle;
         handle.play();
       });

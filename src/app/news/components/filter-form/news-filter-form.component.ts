@@ -58,7 +58,7 @@ export class NewsFilterFormComponent {
     language: ['' as Language],
     sources: [[] as string[]],
     sortBy: ['' as SortBy | ''],
-    category: ['' as Category | '',],
+    category: ['' as Category | ''],
     country: ['' as Country | ''],
   });
 
@@ -66,10 +66,12 @@ export class NewsFilterFormComponent {
 
   private readonly sourceFilterParams = signal<SourceFilterParams>({});
 
-  protected readonly availableSources = computed(() => this.newsService.getSources(this.sourceFilterParams()));
+  protected readonly availableSources = computed(() =>
+    this.newsService.getSources(this.sourceFilterParams()),
+  );
 
   constructor() {
-    this.form.controls.sources.valueChanges.pipe(takeUntilDestroyed()).subscribe(sources => {
+    this.form.controls.sources.valueChanges.pipe(takeUntilDestroyed()).subscribe((sources) => {
       this.syncSourcesExclusivity(sources);
       this.updateSourceFilterParams();
     });
@@ -78,7 +80,9 @@ export class NewsFilterFormComponent {
       this.form.controls.language.valueChanges,
       this.form.controls.category.valueChanges,
       this.form.controls.country.valueChanges,
-    ).pipe(takeUntilDestroyed()).subscribe(() => this.updateSourceFilterParams());
+    )
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.updateSourceFilterParams());
 
     this.syncSourcesExclusivity(this.form.controls.sources.getRawValue());
     this.updateSourceFilterParams();
@@ -107,7 +111,7 @@ export class NewsFilterFormComponent {
       country: country || undefined,
     });
     const available = this.availableSources();
-    const valid = sources.filter(s => available.includes(s));
+    const valid = sources.filter((s) => available.includes(s));
     if (valid.length !== sources.length) {
       this.form.controls.sources.setValue(valid, { emitEvent: false });
       this.syncSourcesExclusivity(valid);
@@ -115,9 +119,7 @@ export class NewsFilterFormComponent {
   }
 
   private populateFromQueryParams(params: Params): void {
-    const sources = params['sources']
-      ? (params['sources'] as string).split(',')
-      : [];
+    const sources = params['sources'] ? (params['sources'] as string).split(',') : [];
     if (params['searchType'] === 'top-headlines') {
       this.searchType.set('top-headlines');
     }
@@ -168,6 +170,6 @@ export class NewsFilterFormComponent {
   }
 
   protected toggleFilters(): void {
-    this.filtersExpanded.update(v => !v);
+    this.filtersExpanded.update((v) => !v);
   }
 }

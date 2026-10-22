@@ -7,9 +7,7 @@ import { Vehicle } from '../../types/vehicle';
 @Component({
   selector: 'app-vehicle',
   templateUrl: './vehicle.component.html',
-  imports: [
-    NgClass
-  ]
+  imports: [NgClass],
 })
 export class VehicleComponent {
   vehicle = input.required<Vehicle>();
@@ -17,8 +15,7 @@ export class VehicleComponent {
   private readonly regionService = inject(RegionService);
 
   getRegions() {
-    return this.regionService.getRegions()
-      .filter(l => l.id !== this.vehicle().location);
+    return this.regionService.getRegions().filter((l) => l.id !== this.vehicle().location);
   }
 
   getLocationName(id: number): string {

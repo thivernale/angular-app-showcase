@@ -4,9 +4,7 @@ import { ImageService } from '../components/carousel/services/image.service';
 
 @Component({
   selector: 'app-gallery',
-  imports: [
-    CarouselComponent
-  ],
+  imports: [CarouselComponent],
   templateUrl: './gallery.component.html',
 })
 export class GalleryComponent {
