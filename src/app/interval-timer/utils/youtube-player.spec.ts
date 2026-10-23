@@ -33,6 +33,17 @@ function stubYT() {
 }
 
 beforeEach(() => {
+  // In a real browser (test:browser / test:ci) the injected iframe_api script would actually be
+  // fetched from youtube.com and executed against our stubbed/deleted `YT`, throwing a cross-origin
+  // "Script error." during a later test. A non-JS type keeps the element in the DOM but inert.
+  const appendChild = document.head.appendChild.bind(document.head);
+  vi.spyOn(document.head, 'appendChild').mockImplementation(<T extends Node>(node: T): T => {
+    if (node instanceof HTMLScriptElement) {
+      node.type = 'text/x-inert';
+    }
+    return appendChild(node);
+  });
+
   FakePlayer.instances = [];
   document.head.innerHTML = '';
   delete (window as any).YT;
@@ -42,6 +53,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe('loadYouTubeIframeApi', () => {
