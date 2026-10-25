@@ -21,7 +21,7 @@ npm test -- --no-watch --include src/app/path/to/file.spec.ts
 
 Tests run through Angular's `@angular/build:unit-test` builder, which sets up TestBed and jsdom — don't invoke `npx vitest` directly, it skips that setup.
 
-`.npmrc` sets `node-options=--no-experimental-webstorage`. Node 25+ defines a native `globalThis.localStorage` that is `undefined` without `--localstorage-file` and shadows jsdom's implementation, breaking every spec that touches `localStorage`. Always run tests via `npm` scripts so this flag applies (plain `npx ng test` bypasses `.npmrc`).
+Node 25+ defines a native `globalThis.localStorage` that is `undefined` without `--localstorage-file` and shadows jsdom's implementation, breaking every spec that touches `localStorage`. `vitest.config.ts` (wired in via `runnerConfig` in `angular.json`) passes `--no-experimental-webstorage` to the Vitest workers through `execArgv`, so this works however tests are launched — npm scripts, IntelliJ gutter runs (which call `node ng.js test` directly), or `ng test`.
 
 ### Docker
 
