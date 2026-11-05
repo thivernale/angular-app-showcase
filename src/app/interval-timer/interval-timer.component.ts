@@ -7,6 +7,7 @@ import {
   inject,
   model,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -513,7 +514,9 @@ export class IntervalTimerComponent {
         this.timerInterval = null;
       }
     } else if (!this.timerInterval) {
-      this.targetTime = Date.now() + this.phaseRemaining() * 1000;
+      // untracked: reading phaseRemaining here must not make every tick re-run this
+      // effect, which would re-anchor targetTime to the rounded remaining seconds.
+      this.targetTime = Date.now() + untracked(this.phaseRemaining) * 1000;
       this.timerInterval = setInterval(this.tick, 1_000);
     }
 

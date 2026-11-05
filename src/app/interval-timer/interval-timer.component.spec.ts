@@ -174,6 +174,20 @@ describe('IntervalTimerComponent', () => {
     expect(component.phase()).toBe('rest');
   });
 
+  it('keeps the phase end anchored to the wall clock across ticks', () => {
+    start(1, 10, 0);
+
+    vi.setSystemTime(Date.now() + 1_500); // tick lands mid-second
+    (component as any).tick();
+    TestBed.tick(); // flush effects: must not re-anchor targetTime from the rounded remaining
+    expect(component.phaseRemaining()).toBe(9);
+
+    vi.setSystemTime(Date.now() + 8_500); // exactly 10s since start
+    (component as any).tick();
+
+    expect(component.sessionActive()).toBe(false);
+  });
+
   it('resets phase and round to the start when stopped', () => {
     start(2, 5, 2);
     advanceAndTick(5); // into rest
