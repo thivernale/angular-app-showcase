@@ -533,14 +533,23 @@ export class IntervalTimerComponent {
     const id = this.videoId();
     const container = this.videoPlayerContainer();
 
+    // create() is async: if this effect is cleaned up (e.g. the session stops) before the
+    // player is ready, the late handle must be destroyed instead of adopted.
+    let cancelled = false;
+
     if (running && id && container) {
       this.youtubePlayerService.create(container.nativeElement, id).then((handle) => {
+        if (cancelled) {
+          handle.destroy();
+          return;
+        }
         this.videoPlayer = handle;
         handle.play();
       });
     }
 
     onCleanup(() => {
+      cancelled = true;
       if (this.videoPlayer) {
         this.videoPlayer.destroy();
         this.videoPlayer = null;

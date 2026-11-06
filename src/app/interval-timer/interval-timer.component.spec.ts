@@ -508,6 +508,27 @@ describe('IntervalTimerComponent', () => {
       expect(handle.destroy).toHaveBeenCalled();
     });
 
+    it('destroys a player that finishes loading after the session already stopped', async () => {
+      const handle = fakeVideoHandle();
+      let resolveCreate!: (h: ReturnType<typeof fakeVideoHandle>) => void;
+      youtubePlayerService.create.mockReturnValue(new Promise((resolve) => (resolveCreate = resolve)));
+      component.videoUrl.set('https://www.youtube.com/watch?v=lhAEvAOPsiU');
+
+      start(2, 5, 0);
+      fixture.detectChanges();
+      expect(youtubePlayerService.create).toHaveBeenCalled();
+
+      stop(); // stopped while the YouTube API is still loading
+      fixture.detectChanges();
+
+      resolveCreate(handle);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(handle.play).not.toHaveBeenCalled();
+      expect(handle.destroy).toHaveBeenCalled();
+    });
+
     it('pauses and resumes the video in sync with the timer', async () => {
       const handle = fakeVideoHandle();
       youtubePlayerService.create.mockResolvedValue(handle);
