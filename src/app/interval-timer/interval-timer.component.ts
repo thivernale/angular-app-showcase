@@ -333,6 +333,8 @@ export class IntervalTimerComponent {
 
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private targetTime = 0;
+  /** Exact time left in the phase when paused; null when not paused. */
+  private pausedRemainingMs: number | null = null;
 
   private readonly configService = inject(IntervalTimerConfigService);
   protected readonly savedConfigs = this.configService.configs;
@@ -429,6 +431,7 @@ export class IntervalTimerComponent {
       this.phaseRemaining.set(0);
     } else {
       // start timer
+      this.pausedRemainingMs = null; // discard a pause left over from a stopped session
       this.currentRound.set(1);
       if (this.intro() > 0) {
         this.phase.set('intro');
@@ -443,13 +446,21 @@ export class IntervalTimerComponent {
   }
 
   protected toggleTimerActive() {
+    if (this.isTimerActive()) {
+      // Keep the exact time left: phaseRemaining is rounded up to whole seconds, and
+      // resuming from it would add up to a second per pause.
+      this.pausedRemainingMs = Math.max(0, this.targetTime - Date.now());
+    }
     this.isTimerActive.update((active) => !active);
   }
 
+  private secondsUntilTarget(): number {
+    return Math.max(0, Math.ceil((this.targetTime - Date.now()) / 1000));
+  }
+
   private readonly tick = () => {
-    const now = Date.now();
     // Calculate true remaining time based on a system clock
-    const remaining = Math.max(0, Math.ceil((this.targetTime - now) / 1000));
+    const remaining = this.secondsUntilTarget();
     this.phaseRemaining.set(remaining);
 
     if (this.playSound() && remaining <= 3) {
@@ -463,37 +474,37 @@ export class IntervalTimerComponent {
 
   private advancePhase() {
     if (this.phase() === 'intro') {
-      this.phase.set('work');
-      this.phaseRemaining.set(this.work());
-      this.targetTime = Date.now() + this.work() * 1000;
+      this.startPhase('work', this.work());
       return;
     }
 
-    const isLastRound = this.currentRound() >= this.rounds();
-
     if (this.phase() === 'work') {
-      if (isLastRound) {
+      if (this.currentRound() >= this.rounds()) {
         this.completeSession();
         return;
       }
       if (this.rest() > 0) {
-        this.phase.set('rest');
-        this.phaseRemaining.set(this.rest());
-        this.targetTime = Date.now() + this.rest() * 1000;
+        this.startPhase('rest', this.rest());
         return;
       }
-      this.startNextWorkRound();
-      return;
     }
 
-    this.startNextWorkRound();
+    this.currentRound.update((round) => round + 1);
+    this.startPhase('work', this.work());
   }
 
-  private startNextWorkRound() {
-    this.currentRound.update((round) => round + 1);
-    this.phase.set('work');
-    this.phaseRemaining.set(this.work());
-    this.targetTime = Date.now() + this.work() * 1000;
+  private startPhase(phase: 'work' | 'rest', durationSeconds: number) {
+    this.phase.set(phase);
+    // Chain from the previous phase's scheduled end rather than Date.now(): the tick that
+    // notices a phase end is always somewhat late, and that lateness must not carry over.
+    this.targetTime += durationSeconds * 1000;
+    const remaining = this.secondsUntilTarget();
+    this.phaseRemaining.set(remaining);
+
+    if (remaining <= 0) {
+      // This phase also already elapsed (e.g. a throttled background tab skipped ticks).
+      this.advancePhase();
+    }
   }
 
   private completeSession() {
@@ -516,7 +527,9 @@ export class IntervalTimerComponent {
     } else if (!this.timerInterval) {
       // untracked: reading phaseRemaining here must not make every tick re-run this
       // effect, which would re-anchor targetTime to the rounded remaining seconds.
-      this.targetTime = Date.now() + untracked(this.phaseRemaining) * 1000;
+      const remainingMs = this.pausedRemainingMs ?? untracked(this.phaseRemaining) * 1000;
+      this.pausedRemainingMs = null;
+      this.targetTime = Date.now() + remainingMs;
       this.timerInterval = setInterval(this.tick, 1_000);
     }
 

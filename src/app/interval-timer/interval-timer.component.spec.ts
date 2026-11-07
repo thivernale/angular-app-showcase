@@ -167,7 +167,7 @@ describe('IntervalTimerComponent', () => {
 
     toggleActive(); // pause
     vi.setSystemTime(Date.now() + 10_000); // wall-clock time passes while paused
-    toggleActive(); // resume: targetTime recomputed from current phaseRemaining
+    toggleActive(); // resume: targetTime recomputed from the time left when paused
 
     advanceAndTick(2); // the remaining 2s of work #1 elapse
 
@@ -186,6 +186,54 @@ describe('IntervalTimerComponent', () => {
     (component as any).tick();
 
     expect(component.sessionActive()).toBe(false);
+  });
+
+  it('chains the next phase from the scheduled phase end, not from a late tick', () => {
+    start(2, 10, 5);
+
+    advanceAndTick(10.4); // tick lands 0.4s after work #1 ended -> rest
+    expect(component.phase()).toBe('rest');
+
+    advanceAndTick(4.6); // 15s since start: rest ended exactly now
+
+    expect(component.phase()).toBe('work');
+    expect(component.currentRound()).toBe(2);
+  });
+
+  it('catches up across phases a very late tick has skipped (e.g. throttled tab)', () => {
+    start(2, 10, 5);
+
+    advanceAndTick(16); // work #1 (0-10s) and rest (10-15s) both elapsed
+
+    expect(component.phase()).toBe('work');
+    expect(component.currentRound()).toBe(2);
+    expect(component.phaseRemaining()).toBe(9);
+  });
+
+  it('keeps sub-second precision across pause and resume', () => {
+    start(1, 10, 0);
+    advanceAndTick(2.5); // 7.5s actually remaining, displayed as 8
+
+    toggleActive(); // pause
+    vi.setSystemTime(Date.now() + 10_000);
+    toggleActive(); // resume
+
+    advanceAndTick(7.5); // exactly the remaining time
+
+    expect(component.sessionActive()).toBe(false);
+  });
+
+  it('starts a fresh session with the full duration after stopping while paused', () => {
+    start(1, 10, 0);
+    advanceAndTick(7); // 3s left
+    toggleActive(); // pause
+    stop();
+
+    start(1, 10, 0);
+    advanceAndTick(9.5);
+
+    expect(component.sessionActive()).toBe(true);
+    expect(component.phaseRemaining()).toBe(1);
   });
 
   it('resets phase and round to the start when stopped', () => {
