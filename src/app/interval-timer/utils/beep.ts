@@ -1,19 +1,28 @@
+// One AudioContext shared by all beeps. Browsers cap how many contexts a page may hold,
+// and a session beeps up to four times per phase, so creating one per beep (and never
+// closing it) eventually exhausts that limit.
+let sharedContext: AudioContext | null = null;
+
+function getAudioContext(): AudioContext {
+  if (!sharedContext || sharedContext.state === 'closed') {
+    // @ts-expect-error cross-browser compatibility
+    sharedContext = new (window.AudioContext || window.webkitAudioContext)() as AudioContext;
+  }
+  if (sharedContext.state === 'suspended') {
+    // Autoplay policies may suspend a context created outside a user gesture.
+    void sharedContext.resume();
+  }
+  return sharedContext;
+}
+
 export function playBeep(duration = 0.2) {
-  // 1. Create the audio context
-  // @ts-expect-error cross-browser compatibility
-  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const audioCtx = getAudioContext();
 
-  // 2. Create an oscillator node
   const oscillator = audioCtx.createOscillator();
-
-  // 3. Configure the sound (type and pitch)
-  oscillator.type = 'sine'; // Options: 'sine', 'square', 'sawtooth', 'triangle'
+  oscillator.type = 'sine';
   oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // 440 Hz is A4 pitch
 
-  // 4. Connect to speakers and play
   oscillator.connect(audioCtx.destination);
   oscillator.start();
-
-  // 5. Stop the sound after a duration (e.g., 200ms)
   oscillator.stop(audioCtx.currentTime + duration);
 }
