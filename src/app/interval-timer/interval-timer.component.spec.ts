@@ -595,6 +595,81 @@ describe('IntervalTimerComponent', () => {
     });
   });
 
+  describe('configuration visibility while running', () => {
+    const configurationSelectors = [
+      '#rounds',
+      '#work',
+      '#rest',
+      '#intro',
+      '#total-duration',
+      '#savedConfigs',
+      '#newConfigName',
+      '#copy-config-link',
+      '#exercises',
+      '#videoUrl',
+    ];
+
+    function visible(selector: string) {
+      return fixture.debugElement.query(By.css(selector)) !== null;
+    }
+
+    it('shows all configuration controls before the session starts', () => {
+      for (const selector of configurationSelectors) {
+        expect(visible(selector), selector).toBe(true);
+      }
+    });
+
+    it('hides all configuration controls, including Copy Link, while running', () => {
+      start(2, 5, 0);
+      fixture.detectChanges();
+
+      for (const selector of configurationSelectors) {
+        expect(visible(selector), selector).toBe(false);
+      }
+    });
+
+    it('keeps them hidden while paused', () => {
+      start(2, 5, 0);
+      toggleActive(); // pause
+      fixture.detectChanges();
+
+      for (const selector of configurationSelectors) {
+        expect(visible(selector), selector).toBe(false);
+      }
+    });
+
+    it('keeps the session controls and the sound toggle visible while running', () => {
+      start(2, 5, 0);
+      fixture.detectChanges();
+
+      expect(visible('#toggle-started')).toBe(true);
+      expect(visible('#toggle-active')).toBe(true);
+      expect(visible('input[name="playSound"]')).toBe(true);
+    });
+
+    it('shows the configuration controls again after stopping', () => {
+      start(2, 5, 0);
+      fixture.detectChanges();
+      stop();
+      fixture.detectChanges();
+
+      for (const selector of configurationSelectors) {
+        expect(visible(selector), selector).toBe(true);
+      }
+    });
+
+    it('shows the configuration controls again when the session completes', () => {
+      start(1, 5, 0);
+      fixture.detectChanges();
+      advanceAndTick(5); // last work interval ends -> session complete
+      fixture.detectChanges();
+
+      for (const selector of configurationSelectors) {
+        expect(visible(selector), selector).toBe(true);
+      }
+    });
+  });
+
   describe('reset', () => {
     it('restores all settings to their default values', () => {
       component.rounds.set(3);

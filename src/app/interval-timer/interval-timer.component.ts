@@ -72,72 +72,71 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
         </div>
       </div>
 
-      <!-- Configuration: settings + saved configs on the left, exercise list on the right -->
+      <!-- Configuration: settings + saved configs on the left, exercise list on the right.
+           While a session runs, only the session buttons and the sound toggle are shown. -->
       <div class="d-flex flex-column flex-lg-row gap-4 justify-content-center align-items-start">
         <div class="d-flex flex-column flex-wrap gap-4 justify-content-center align-items-center">
           <div
             class="text-center gap-2 d-flex flex-column flex-wrap flex-md-row my-3 align-items-center container-fluid justify-content-start"
           >
-            <div class="form-floating col-md-3 col-6 flex-shrink-1">
-              <input
-                type="number"
-                class="form-control"
-                [ngModel]="rounds()"
-                (ngModelChange)="rounds.set($event)"
-                [disabled]="started"
-                [max]="60"
-                [min]="0"
-                [step]="1"
-                placeholder="Rounds"
-                id="rounds"
-              />
-              <label for="rounds" class="form-label">Number of rounds</label>
-            </div>
-            <div class="form-floating col-md-3 col-6 flex-shrink-1">
-              <input
-                type="number"
-                class="form-control"
-                [ngModel]="work()"
-                (ngModelChange)="work.set($event)"
-                [disabled]="started"
-                [max]="120"
-                [min]="10"
-                [step]="5"
-                placeholder="Work"
-                id="work"
-              />
-              <label for="work" class="form-label">Work duration</label>
-            </div>
-            <div class="form-floating col-md-3 col-6 flex-shrink-1">
-              <input
-                type="number"
-                class="form-control"
-                [ngModel]="rest()"
-                (ngModelChange)="rest.set($event)"
-                [disabled]="started"
-                [max]="60"
-                [min]="0"
-                [step]="5"
-                placeholder="Rest"
-                id="rest"
-              />
-              <label for="rest" class="form-label">Rest duration</label>
-            </div>
-            <div class="form-floating col-md-3 col-6 flex-shrink-1">
-              <input
-                type="number"
-                class="form-control"
-                [ngModel]="intro()"
-                (ngModelChange)="intro.set($event)"
-                [disabled]="started"
-                [max]="300"
-                [min]="0"
-                [step]="5"
-                placeholder="Get Ready"
-                id="intro"
-              />
-              <label for="intro" class="form-label">Get Ready</label>
-            </div>
+            @if (!started) {
+              <div class="form-floating col-md-3 col-6 flex-shrink-1">
+                <input
+                  type="number"
+                  class="form-control"
+                  [ngModel]="rounds()"
+                  (ngModelChange)="rounds.set($event)"
+                  [max]="60"
+                  [min]="0"
+                  [step]="1"
+                  placeholder="Rounds"
+                  id="rounds"
+                />
+                <label for="rounds" class="form-label">Number of rounds</label>
+              </div>
+              <div class="form-floating col-md-3 col-6 flex-shrink-1">
+                <input
+                  type="number"
+                  class="form-control"
+                  [ngModel]="work()"
+                  (ngModelChange)="work.set($event)"
+                  [max]="120"
+                  [min]="10"
+                  [step]="5"
+                  placeholder="Work"
+                  id="work"
+                />
+                <label for="work" class="form-label">Work duration</label>
+              </div>
+              <div class="form-floating col-md-3 col-6 flex-shrink-1">
+                <input
+                  type="number"
+                  class="form-control"
+                  [ngModel]="rest()"
+                  (ngModelChange)="rest.set($event)"
+                  [max]="60"
+                  [min]="0"
+                  [step]="5"
+                  placeholder="Rest"
+                  id="rest"
+                />
+                <label for="rest" class="form-label">Rest duration</label>
+              </div>
+              <div class="form-floating col-md-3 col-6 flex-shrink-1">
+                <input
+                  type="number"
+                  class="form-control"
+                  [ngModel]="intro()"
+                  (ngModelChange)="intro.set($event)"
+                  [max]="300"
+                  [min]="0"
+                  [step]="5"
+                  placeholder="Get Ready"
+                  id="intro"
+                />
+                <label for="intro" class="form-label">Get Ready</label>
+              </div>
+            }
             <label class="d-flex gap-2 align-items-center col-md-3 col-6 px-2">
               <input
                 type="checkbox"
@@ -171,101 +170,97 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
             }
           </div>
 
-          <div
-            id="total-duration"
-            class="text-body-secondary col-12 text-start p-2 fs-5 border-top"
-          >
-            Total duration: {{ totalDurationLabel() }}
-          </div>
+          @if (!started) {
+            <div
+              id="total-duration"
+              class="text-body-secondary col-12 text-start p-2 fs-5 border-top"
+            >
+              Total duration: {{ totalDurationLabel() }}
+            </div>
 
-          <div
-            class="d-flex flex-column flex-wrap flex-lg-row gap-2 align-items-center justify-content-start w-100 pt-3 border-top small text-body-secondary"
-          >
-            <select
-              class="form-select form-select-sm w-auto"
-              [ngModel]="selectedConfigName()"
-              (ngModelChange)="selectedConfigName.set($event)"
-              [disabled]="started"
-              id="savedConfigs"
-              aria-label="Saved configurations"
+            <div
+              class="d-flex flex-column flex-wrap flex-lg-row gap-2 align-items-center justify-content-start w-100 pt-3 border-top small text-body-secondary"
             >
-              <option value="" disabled>Saved configs…</option>
-              @for (c of savedConfigs(); track c.name) {
-                <option [value]="c.name">{{ c.name }}</option>
-              }
-            </select>
-            <button
-              class="btn btn-sm btn-outline-secondary"
-              (click)="loadSelectedConfig()"
-              [disabled]="started || !selectedConfigName()"
-            >
-              Load
-            </button>
-            <button
-              class="btn btn-sm btn-outline-secondary"
-              (click)="deleteSelectedConfig()"
-              [disabled]="started || !selectedConfigName()"
-            >
-              Delete
-            </button>
-            <button
-              class="btn btn-sm btn-outline-secondary"
-              id="copy-config-link"
-              (click)="copyConfigLink()"
-              [disabled]="!selectedConfigName()"
-            >
-              Copy Link
-            </button>
-            <input
-              type="text"
-              class="form-control form-control-sm w-auto"
-              [ngModel]="newConfigName()"
-              (ngModelChange)="newConfigName.set($event)"
-              [disabled]="started"
-              placeholder="Config name"
-              id="newConfigName"
-              aria-label="Config name"
-            />
-            <button
-              class="btn btn-sm btn-outline-secondary"
-              (click)="saveCurrentConfig()"
-              [disabled]="started"
-            >
-              Save
-            </button>
-          </div>
-        </div>
-
-        <div class="d-flex flex-column gap-2 w-100" style="max-width: 320px;">
-          <label for="exercises" class="form-label fw-semibold"
-            >Exercises <span class="text-body-secondary fw-normal">(optional)</span></label
-          >
-          <textarea
-            class="form-control"
-            id="exercises"
-            rows="8"
-            [ngModel]="exercisesText()"
-            (ngModelChange)="exercisesText.set($event)"
-            [disabled]="started"
-            placeholder="One exercise per line, e.g.&#10;Push-ups&#10;Squats&#10;Plank"
-          ></textarea>
-
-          <label for="videoUrl" class="form-label fw-semibold"
-            >Video <span class="text-body-secondary fw-normal">(optional)</span></label
-          >
-          <input
-            type="text"
-            class="form-control"
-            id="videoUrl"
-            [ngModel]="videoUrl()"
-            (ngModelChange)="videoUrl.set($event)"
-            [disabled]="started"
-            placeholder="YouTube video, Shorts, or share link"
-          />
-          @if (videoUrl() && !videoId()) {
-            <div class="form-text text-danger">Enter a valid YouTube URL</div>
+              <select
+                class="form-select form-select-sm w-auto"
+                [ngModel]="selectedConfigName()"
+                (ngModelChange)="selectedConfigName.set($event)"
+                id="savedConfigs"
+                aria-label="Saved configurations"
+              >
+                <option value="" disabled>Saved configs…</option>
+                @for (c of savedConfigs(); track c.name) {
+                  <option [value]="c.name">{{ c.name }}</option>
+                }
+              </select>
+              <button
+                class="btn btn-sm btn-outline-secondary"
+                (click)="loadSelectedConfig()"
+                [disabled]="!selectedConfigName()"
+              >
+                Load
+              </button>
+              <button
+                class="btn btn-sm btn-outline-secondary"
+                (click)="deleteSelectedConfig()"
+                [disabled]="!selectedConfigName()"
+              >
+                Delete
+              </button>
+              <button
+                class="btn btn-sm btn-outline-secondary"
+                id="copy-config-link"
+                (click)="copyConfigLink()"
+                [disabled]="!selectedConfigName()"
+              >
+                Copy Link
+              </button>
+              <input
+                type="text"
+                class="form-control form-control-sm w-auto"
+                [ngModel]="newConfigName()"
+                (ngModelChange)="newConfigName.set($event)"
+                placeholder="Config name"
+                id="newConfigName"
+                aria-label="Config name"
+              />
+              <button class="btn btn-sm btn-outline-secondary" (click)="saveCurrentConfig()">
+                Save
+              </button>
+            </div>
           }
         </div>
+
+        @if (!started) {
+          <div class="d-flex flex-column gap-2 w-100" style="max-width: 320px;">
+            <label for="exercises" class="form-label fw-semibold"
+              >Exercises <span class="text-body-secondary fw-normal">(optional)</span></label
+            >
+            <textarea
+              class="form-control"
+              id="exercises"
+              rows="8"
+              [ngModel]="exercisesText()"
+              (ngModelChange)="exercisesText.set($event)"
+              placeholder="One exercise per line, e.g.&#10;Push-ups&#10;Squats&#10;Plank"
+            ></textarea>
+
+            <label for="videoUrl" class="form-label fw-semibold"
+              >Video <span class="text-body-secondary fw-normal">(optional)</span></label
+            >
+            <input
+              type="text"
+              class="form-control"
+              id="videoUrl"
+              [ngModel]="videoUrl()"
+              (ngModelChange)="videoUrl.set($event)"
+              placeholder="YouTube video, Shorts, or share link"
+            />
+            @if (videoUrl() && !videoId()) {
+              <div class="form-text text-danger">Enter a valid YouTube URL</div>
+            }
+          </div>
+        }
       </div>
     </div>
   `,
