@@ -1,4 +1,4 @@
-import { NgClass } from '@angular/common';
+import { NgClass, NgTemplateOutlet } from '@angular/common';
 import {
   Component,
   computed,
@@ -21,14 +21,14 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
 
 @Component({
   selector: 'app-interval-timer',
-  imports: [FormsModule, NgClass],
+  imports: [FormsModule, NgClass, NgTemplateOutlet],
   template: `
     @let active = isTimerActive();
     @let started = sessionActive();
     <div class="d-flex flex-column gap-4 mx-auto" style="max-width: 1000px;">
       <!-- Display: title + counter on the left, current exercise prominently top-right -->
       <div class="d-flex flex-column flex-lg-row gap-4 align-items-center align-items-lg-start">
-        <div class="d-flex flex-column align-items-center w-100 flex-lg-fill">
+        <div id="timer-display" class="d-flex flex-column align-items-center w-100 flex-lg-fill">
           <h2 class="fs-1">Interval Timer</h2>
           <div
             id="countdown-circle"
@@ -51,35 +51,42 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
                 {{ phase() === 'work' ? 'Work' : 'Rest' }}
               }
             </div>
-          }
-        </div>
-        <div
-          class="d-flex flex-column align-items-center align-items-lg-end justify-content-start w-100 flex-lg-fill"
-        >
-          @if (currentExercise(); as exercise) {
-            <div
-              id="exercise-line"
-              class="fs-2 fw-normal text-secondary text-center text-lg-end px-4 py-3 bg-secondary-subtle border border-secondary-subtle rounded-3 shadow-sm"
-            >
-              {{ exercise }}
-            </div>
-          }
-          @if (started && videoId(); as id) {
-            <div id="video-panel" class="w-100" style="max-width: 480px; aspect-ratio: 16 / 9;">
-              <div #videoPlayerContainer class="w-100 h-100"></div>
+            <div class="d-flex gap-2 align-items-center justify-content-center pt-3">
+              <ng-container [ngTemplateOutlet]="sessionControls" />
             </div>
           }
         </div>
+        <!-- Rendered only when it has content, so the countdown centres on the page otherwise -->
+        @if (currentExercise() || (started && videoId())) {
+          <div
+            id="side-panel"
+            class="d-flex flex-column align-items-center align-items-lg-end justify-content-start w-100 flex-lg-fill"
+          >
+            @if (currentExercise(); as exercise) {
+              <div
+                id="exercise-line"
+                class="fs-2 fw-normal text-secondary text-center text-lg-end px-4 py-3 bg-secondary-subtle border border-secondary-subtle rounded-3 shadow-sm"
+              >
+                {{ exercise }}
+              </div>
+            }
+            @if (started && videoId(); as id) {
+              <div id="video-panel" class="w-100" style="max-width: 480px; aspect-ratio: 16 / 9;">
+                <div #videoPlayerContainer class="w-100 h-100"></div>
+              </div>
+            }
+          </div>
+        }
       </div>
 
       <!-- Configuration: settings + saved configs on the left, exercise list on the right.
-           While a session runs, only the session buttons and the sound toggle are shown. -->
-      <div class="d-flex flex-column flex-lg-row gap-4 justify-content-center align-items-start">
-        <div class="d-flex flex-column flex-wrap gap-4 justify-content-center align-items-center">
-          <div
-            class="text-center gap-2 d-flex flex-column flex-wrap flex-md-row my-3 align-items-center container-fluid justify-content-start"
-          >
-            @if (!started) {
+           Hidden while a session runs; the session controls then sit under the countdown. -->
+      @if (!started) {
+        <div class="d-flex flex-column flex-lg-row gap-4 justify-content-center align-items-start">
+          <div class="d-flex flex-column flex-wrap gap-4 justify-content-center align-items-center">
+            <div
+              class="text-center gap-2 d-flex flex-column flex-wrap flex-md-row my-3 align-items-center container-fluid justify-content-start"
+            >
               <div class="form-floating col-md-3 col-6 flex-shrink-1">
                 <input
                   type="number"
@@ -136,41 +143,9 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
                 />
                 <label for="intro" class="form-label">Get Ready</label>
               </div>
-            }
-            <label class="d-flex gap-2 align-items-center col-md-3 col-6 px-2">
-              <input
-                type="checkbox"
-                class="form-check-input"
-                name="playSound"
-                [ngModel]="playSound()"
-                (ngModelChange)="playSound.set($event)"
-              />
-              <span class="form-check-label">Sound</span>
-            </label>
-            <button
-              class="btn"
-              id="toggle-started"
-              (click)="toggleTimerStarted()"
-              [ngClass]="started ? 'btn-outline-primary' : 'btn-primary'"
-            >
-              {{ started ? 'Stop' : 'Start' }}
-            </button>
-            @if (started) {
-              <button class="btn btn-primary" id="toggle-active" (click)="toggleTimerActive()">
-                {{ active ? 'Pause' : 'Resume' }}
-              </button>
-            } @else {
-              <button
-                class="btn btn-outline-secondary"
-                id="reset-settings"
-                (click)="resetSettings()"
-              >
-                Reset
-              </button>
-            }
-          </div>
+              <ng-container [ngTemplateOutlet]="sessionControls" />
+            </div>
 
-          @if (!started) {
             <div
               id="total-duration"
               class="text-body-secondary col-12 text-start p-2 fs-5 border-top"
@@ -228,10 +203,8 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
                 Save
               </button>
             </div>
-          }
-        </div>
+          </div>
 
-        @if (!started) {
           <div class="d-flex flex-column gap-2 w-100" style="max-width: 320px;">
             <label for="exercises" class="form-label fw-semibold"
               >Exercises <span class="text-body-secondary fw-normal">(optional)</span></label
@@ -260,8 +233,43 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
               <div class="form-text text-danger">Enter a valid YouTube URL</div>
             }
           </div>
+        </div>
+      }
+
+      <!-- Sound toggle + Start/Stop + Pause/Reset: under the countdown while running,
+           in the settings row otherwise. -->
+      <ng-template #sessionControls>
+        <label
+          class="d-flex gap-2 align-items-center px-2 text-nowrap"
+          [ngClass]="{ 'col-md-3 col-6': !started }"
+        >
+          <input
+            type="checkbox"
+            class="form-check-input"
+            name="playSound"
+            [ngModel]="playSound()"
+            (ngModelChange)="playSound.set($event)"
+          />
+          <span class="form-check-label">Sound</span>
+        </label>
+        <button
+          class="btn"
+          id="toggle-started"
+          (click)="toggleTimerStarted()"
+          [ngClass]="started ? 'btn-outline-primary' : 'btn-primary'"
+        >
+          {{ started ? 'Stop' : 'Start' }}
+        </button>
+        @if (started) {
+          <button class="btn btn-primary" id="toggle-active" (click)="toggleTimerActive()">
+            {{ active ? 'Pause' : 'Resume' }}
+          </button>
+        } @else {
+          <button class="btn btn-outline-secondary" id="reset-settings" (click)="resetSettings()">
+            Reset
+          </button>
         }
-      </div>
+      </ng-template>
     </div>
   `,
 })

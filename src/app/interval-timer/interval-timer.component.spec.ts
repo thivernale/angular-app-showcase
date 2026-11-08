@@ -647,6 +647,37 @@ describe('IntervalTimerComponent', () => {
       expect(visible('input[name="playSound"]')).toBe(true);
     });
 
+    it('places the session controls under the countdown while running', () => {
+      start(2, 5, 0);
+      fixture.detectChanges();
+
+      const display = fixture.debugElement.query(By.css('#timer-display'));
+      expect(display.query(By.css('#toggle-started'))).not.toBeNull();
+      expect(display.query(By.css('#toggle-active'))).not.toBeNull();
+      expect(display.query(By.css('input[name="playSound"]'))).not.toBeNull();
+    });
+
+    it('keeps the session controls in the settings row, not under the countdown, when stopped', () => {
+      const display = fixture.debugElement.query(By.css('#timer-display'));
+      expect(display.query(By.css('#toggle-started'))).toBeNull();
+      expect(visible('#toggle-started')).toBe(true);
+    });
+
+    it('omits the side panel when there is no exercise or video to show', () => {
+      start(2, 5, 0);
+      fixture.detectChanges();
+
+      expect(visible('#side-panel')).toBe(false);
+    });
+
+    it('shows the side panel when there is an exercise to show', () => {
+      component.exercisesText.set('Push-ups');
+      start(2, 5, 0);
+      fixture.detectChanges();
+
+      expect(visible('#side-panel')).toBe(true);
+    });
+
     it('shows the configuration controls again after stopping', () => {
       start(2, 5, 0);
       fixture.detectChanges();
