@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createBeepPlayer } from './beep';
 
 class FakeOscillator {
   type = '';
@@ -34,11 +35,12 @@ class FakeAudioContext {
 describe('playBeep', () => {
   let playBeep: (duration?: number) => void;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     constructed = [];
     vi.stubGlobal('AudioContext', FakeAudioContext);
-    vi.resetModules(); // fresh module => no context cached from an earlier test
-    ({ playBeep } = await import('./beep'));
+    // A fresh player per test, so no context is cached from an earlier test. (Re-importing
+    // the module after vi.resetModules() is not enough: browser mode keeps the cached module.)
+    playBeep = createBeepPlayer();
   });
 
   afterEach(() => {
