@@ -19,6 +19,24 @@ import { playBeep } from './utils/beep';
 import { extractYouTubeVideoId } from './utils/youtube';
 import { YouTubePlayerHandle } from './utils/youtube-player';
 
+const DEFAULT_SETTINGS: Readonly<{
+  rounds: number;
+  work: number;
+  rest: number;
+  intro: number;
+  playSound: boolean;
+  exercisesText: string;
+  videoUrl: string;
+}> = {
+  rounds: 10,
+  work: 30,
+  rest: 0,
+  intro: 0,
+  playSound: true,
+  exercisesText: '',
+  videoUrl: '',
+};
+
 @Component({
   selector: 'app-interval-timer',
   imports: [FormsModule, NgClass, NgTemplateOutlet],
@@ -36,11 +54,11 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
             [ngClass]="{
               'text-success bg-success-subtle': phase() === 'work',
               'text-secondary bg-secondary-subtle': phase() === 'rest' || phase() === 'intro',
-              'bg-white': remaining() === 0,
+              'bg-white': phaseRemaining() === 0,
             }"
             style="width: 200px; height: 200px;"
           >
-            {{ remaining() }}
+            {{ phaseRemaining() }}
           </div>
           @if (started) {
             <div id="phase-label" class="pt-3 fs-3 text-center">
@@ -94,7 +112,7 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
                   [ngModel]="rounds()"
                   (ngModelChange)="rounds.set($event)"
                   [max]="60"
-                  [min]="0"
+                  [min]="1"
                   [step]="1"
                   placeholder="Rounds"
                   id="rounds"
@@ -274,13 +292,13 @@ import { YouTubePlayerHandle } from './utils/youtube-player';
   `,
 })
 export class IntervalTimerComponent {
-  rounds = model(10);
-  work = model(30);
-  rest = model(0);
-  intro = model(0);
-  playSound = model(true);
-  exercisesText = model('');
-  videoUrl = model('');
+  rounds = model(DEFAULT_SETTINGS.rounds);
+  work = model(DEFAULT_SETTINGS.work);
+  rest = model(DEFAULT_SETTINGS.rest);
+  intro = model(DEFAULT_SETTINGS.intro);
+  playSound = model(DEFAULT_SETTINGS.playSound);
+  exercisesText = model(DEFAULT_SETTINGS.exercisesText);
+  videoUrl = model(DEFAULT_SETTINGS.videoUrl);
 
   protected readonly videoId = computed(() => extractYouTubeVideoId(this.videoUrl()));
   private readonly videoPlayerContainer =
@@ -293,8 +311,6 @@ export class IntervalTimerComponent {
   phaseRemaining = signal(0);
   sessionActive = signal(false);
   isTimerActive = signal(false);
-
-  remaining = computed(() => this.phaseRemaining());
 
   protected readonly totalDurationLabel = computed(() => {
     const totalSeconds =
@@ -408,18 +424,19 @@ export class IntervalTimerComponent {
 
   private generateDefaultName(): string {
     const rest = this.rest() > 0 ? `/${this.rest()}` : '';
+    const intro = this.intro() > 0 ? ` (${this.intro()}s get ready)` : '';
     const sound = this.playSound() ? '' : ' (silent)';
-    return `${this.rounds()}x${this.work()}${rest}${sound}`;
+    return `${this.rounds()}x${this.work()}${rest}${intro}${sound}`;
   }
 
   protected resetSettings(): void {
-    this.rounds.set(10);
-    this.work.set(30);
-    this.rest.set(0);
-    this.playSound.set(true);
-    this.exercisesText.set('');
-    this.videoUrl.set('');
-    this.intro.set(0);
+    this.rounds.set(DEFAULT_SETTINGS.rounds);
+    this.work.set(DEFAULT_SETTINGS.work);
+    this.rest.set(DEFAULT_SETTINGS.rest);
+    this.playSound.set(DEFAULT_SETTINGS.playSound);
+    this.exercisesText.set(DEFAULT_SETTINGS.exercisesText);
+    this.videoUrl.set(DEFAULT_SETTINGS.videoUrl);
+    this.intro.set(DEFAULT_SETTINGS.intro);
     this.newConfigName.set('');
     this.selectedConfigName.set('');
   }

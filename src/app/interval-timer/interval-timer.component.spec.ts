@@ -726,6 +726,11 @@ describe('IntervalTimerComponent', () => {
       expect((component as any).selectedConfigName()).toBe('');
     });
 
+    it('requires at least one round', () => {
+      const roundsInput = fixture.debugElement.query(By.css('#rounds')).nativeElement;
+      expect(roundsInput.getAttribute('min')).toBe('1');
+    });
+
     it('hides the reset button while the session is running', () => {
       start(2, 5, 0);
       fixture.detectChanges();
@@ -799,6 +804,34 @@ describe('IntervalTimerComponent', () => {
 
       const configService = TestBed.inject(IntervalTimerConfigService);
       expect(configService.load('10x30/10')).toBeTruthy();
+    });
+
+    it('includes the get-ready time in the generated name when it is greater than 0', () => {
+      component.rounds.set(10);
+      component.work.set(30);
+      component.rest.set(10);
+      component.intro.set(10);
+      (component as any).newConfigName.set('');
+
+      (component as any).saveCurrentConfig();
+
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      expect(configService.load('10x30/10 (10s get ready)')).toBeTruthy();
+    });
+
+    it('does not let a config with a get-ready time overwrite an otherwise-identical one without', () => {
+      component.rounds.set(10);
+      component.work.set(30);
+      component.rest.set(0);
+      (component as any).newConfigName.set('');
+
+      component.intro.set(0);
+      (component as any).saveCurrentConfig();
+      component.intro.set(15);
+      (component as any).saveCurrentConfig();
+
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      expect(configService.configs()).toHaveLength(2);
     });
 
     it('does not let a silent config overwrite an otherwise-identical config with sound', () => {
