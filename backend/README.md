@@ -85,6 +85,19 @@ Browser storage: about 5 MB per site. 100 presets of 8 KB take about 0.8 MB per 
 list, the profile's device copy and unsent changes at the same time. If storage is full, the app refuses the change
 and says so.
 
+## Local development
+
+Runs the real handler against DynamoDB Local; nothing is created in AWS.
+
+```bash
+docker run -d --rm -p 8000:8000 --name interval-timer-dynamodb amazon/dynamodb-local
+npm run local                        # API on http://localhost:3100, creates the table if needed
+DYNAMODB_ENDPOINT=http://localhost:8000 TABLE_NAME=interval-timer-local npm run keys -- create me laptop
+```
+
+Set `intervalTimerApiUrl: 'http://localhost:3100'` in `environment.development.ts` (don't commit it) and run
+`npm start` in the repository root. `docker stop interval-timer-dynamodb` discards the local data.
+
 ## Tests
 
 ```bash
