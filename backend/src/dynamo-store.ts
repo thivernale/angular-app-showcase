@@ -21,6 +21,21 @@ export const profilePk = (profile: string) => `PROFILE#${profile}`;
 export const presetSk = (name: string) => `PRESET#${name}`;
 const metaKey = (profile: string) => ({ PK: profilePk(profile), SK: 'META' });
 
+/**
+ * DynamoDB client for the current environment. Set DYNAMODB_ENDPOINT (e.g. http://localhost:8000) to use
+ * DynamoDB Local during development; otherwise the default AWS configuration applies.
+ */
+export function createDynamoClient(): DynamoDBClient {
+  const endpoint = process.env['DYNAMODB_ENDPOINT'];
+  return endpoint
+    ? new DynamoDBClient({
+        endpoint,
+        region: 'local',
+        credentials: { accessKeyId: 'local', secretAccessKey: 'local' },
+      })
+    : new DynamoDBClient({});
+}
+
 /** Per-item reasons of a cancelled transaction, in the order of its items. */
 function cancellationCodes(e: unknown): (string | undefined)[] {
   return e instanceof TransactionCanceledException ? (e.CancellationReasons ?? []).map((r) => r.Code) : [];
@@ -31,7 +46,7 @@ export class DynamoStore implements Store {
 
   constructor(
     private readonly tableName: string,
-    client: DynamoDBClient = new DynamoDBClient({}),
+    client: DynamoDBClient = createDynamoClient(),
   ) {
     this.db = DynamoDBDocumentClient.from(client, {
       marshallOptions: { removeUndefinedValues: true },

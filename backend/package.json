@@ -6,7 +6,8 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "keys": "tsx scripts/keys.ts"
+    "keys": "tsx scripts/keys.ts",
+    "local": "tsx scripts/local-server.ts"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1165.0",
