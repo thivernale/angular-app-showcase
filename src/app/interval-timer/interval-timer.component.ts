@@ -47,7 +47,7 @@ const DEFAULT_SETTINGS: Readonly<{
       <!-- Display: title + counter on the left, current exercise prominently top-right -->
       <div class="d-flex flex-column flex-lg-row gap-4 align-items-center align-items-lg-start">
         <div id="timer-display" class="d-flex flex-column align-items-center w-100 flex-lg-fill">
-          <h2 class="fs-1">Interval Timer</h2>
+          <h2 id="timer-title" class="fs-1 text-center">{{ title() }}</h2>
           <div
             id="countdown-circle"
             class="p-5 display-1 shadow-lg fw-bold rounded-circle d-flex justify-content-center align-items-center"
@@ -359,6 +359,13 @@ export class IntervalTimerComponent {
   protected readonly savedConfigs = this.configService.configs;
   protected selectedConfigName = signal('');
   protected newConfigName = signal('');
+
+  /** The running workout's name when it is a saved configuration, otherwise the page title. */
+  protected readonly title = computed(() => {
+    const name = this.selectedConfigName();
+    const isSavedWorkout = this.savedConfigs().some((c) => c.name === name);
+    return this.sessionActive() && isSavedWorkout ? name : 'Interval Timer';
+  });
 
   private readonly route = inject(ActivatedRoute);
 

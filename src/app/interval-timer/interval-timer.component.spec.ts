@@ -701,6 +701,58 @@ describe('IntervalTimerComponent', () => {
     });
   });
 
+  describe('heading', () => {
+    function heading(): string {
+      fixture.detectChanges();
+      return fixture.debugElement.query(By.css('#timer-title')).nativeElement.textContent.trim();
+    }
+
+    function selectSavedWorkout(name: string) {
+      TestBed.inject(IntervalTimerConfigService).save({
+        name,
+        rounds: 2,
+        work: 5,
+        rest: 0,
+        playSound: true,
+      });
+      (component as any).selectedConfigName.set(name);
+    }
+
+    it('shows "Interval Timer" before the session starts, even with a workout selected', () => {
+      selectSavedWorkout('Chest Day');
+
+      expect(heading()).toBe('Interval Timer');
+    });
+
+    it('shows the selected workout name while running', () => {
+      selectSavedWorkout('Chest Day');
+      start(2, 5, 0);
+
+      expect(heading()).toBe('Chest Day');
+    });
+
+    it('shows "Interval Timer" while running when no workout is selected', () => {
+      start(2, 5, 0);
+
+      expect(heading()).toBe('Interval Timer');
+    });
+
+    it('shows "Interval Timer" while running when the selected name is not a saved workout', () => {
+      (component as any).selectedConfigName.set('Unknown');
+      start(2, 5, 0);
+
+      expect(heading()).toBe('Interval Timer');
+    });
+
+    it('goes back to "Interval Timer" after stopping', () => {
+      selectSavedWorkout('Chest Day');
+      start(2, 5, 0);
+      stop();
+
+      expect(heading()).toBe('Interval Timer');
+    });
+  });
+
   describe('reset', () => {
     it('restores all settings to their default values', () => {
       component.rounds.set(3);
