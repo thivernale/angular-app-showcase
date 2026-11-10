@@ -13,7 +13,9 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { AlertService } from '../components/alert/services/alert.service';
+import { CloudSyncComponent } from './cloud-sync.component';
 import { IntervalTimerConfigService } from './services/interval-timer-config.service';
+import { PRESET_LIMITS } from './types/interval-timer-config.interface';
 import { YouTubePlayerService } from './services/youtube-player.service';
 import { playBeep } from './utils/beep';
 import { extractYouTubeVideoId } from './utils/youtube';
@@ -39,7 +41,7 @@ const DEFAULT_SETTINGS: Readonly<{
 
 @Component({
   selector: 'app-interval-timer',
-  imports: [FormsModule, NgClass, NgTemplateOutlet],
+  imports: [FormsModule, NgClass, NgTemplateOutlet, CloudSyncComponent],
   template: `
     @let active = isTimerActive();
     @let started = sessionActive();
@@ -214,6 +216,7 @@ const DEFAULT_SETTINGS: Readonly<{
                 [ngModel]="newConfigName()"
                 (ngModelChange)="newConfigName.set($event)"
                 placeholder="Config name"
+                [maxlength]="limits.name"
                 id="newConfigName"
                 aria-label="Config name"
               />
@@ -221,6 +224,7 @@ const DEFAULT_SETTINGS: Readonly<{
                 Save
               </button>
             </div>
+            <app-cloud-sync />
           </div>
 
           <div class="d-flex flex-column gap-2 w-100" style="max-width: 320px;">
@@ -231,6 +235,7 @@ const DEFAULT_SETTINGS: Readonly<{
               class="form-control"
               id="exercises"
               rows="8"
+              [maxlength]="limits.exercises"
               [ngModel]="exercisesText()"
               (ngModelChange)="exercisesText.set($event)"
               placeholder="One exercise per line, e.g.&#10;Push-ups&#10;Squats&#10;Plank"
@@ -243,6 +248,7 @@ const DEFAULT_SETTINGS: Readonly<{
               type="text"
               class="form-control"
               id="videoUrl"
+              [maxlength]="limits.videoUrl"
               [ngModel]="videoUrl()"
               (ngModelChange)="videoUrl.set($event)"
               placeholder="YouTube video, Shorts, or share link"
@@ -355,6 +361,7 @@ export class IntervalTimerComponent {
   /** Exact time left in the phase when paused; null when not paused. */
   private pausedRemainingMs: number | null = null;
 
+  protected readonly limits = PRESET_LIMITS;
   private readonly configService = inject(IntervalTimerConfigService);
   protected readonly savedConfigs = this.configService.configs;
   protected selectedConfigName = signal('');

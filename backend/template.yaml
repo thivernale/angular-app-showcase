@@ -1,0 +1,120 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Optional cloud storage for interval timer presets (Lambda Function URL + DynamoDB).
+
+Parameters:
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Description: Browser origins allowed to call the API (CORS), e.g. https://example.com,http://localhost:4200
+  AlertEmail:
+    Type: String
+    Description: Email address that receives the monthly cost budget alert.
+  ReadCapacityUnits:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    Description: Provisioned read units. Keep the region's total across tables at 25 or less to stay free.
+  WriteCapacityUnits:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    Description: Provisioned write units. Keep the region's total across tables at 25 or less to stay free.
+
+Resources:
+  Table:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      # Provisioned capacity is covered by the DynamoDB always-free tier (25 read + 25 write units
+      # per region, shared by all tables); on-demand requests are not free.
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: !Ref ReadCapacityUnits
+        WriteCapacityUnits: !Ref WriteCapacityUnits
+
+  PresetsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-presets
+      RetentionInDays: 7
+
+  PresetsFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: PresetsFunctionLogGroup
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-presets
+      Handler: handler.handler
+      Runtime: nodejs22.x
+      Architectures: [ arm64 ]
+      MemorySize: 128
+      Timeout: 5
+      # Caps how many requests run at once, which limits the cost of a request flood.
+      ReservedConcurrentExecutions: 2
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref Table
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+              Resource: !GetAtt Table.Arn
+      FunctionUrlConfig:
+        # The function checks the access key itself; CORS only limits which sites a browser may call it from.
+        AuthType: NONE
+        Cors:
+          AllowOrigins: !Ref AllowedOrigins
+          AllowMethods: [ GET, PUT, DELETE ]
+          AllowHeaders: [ authorization, content-type ]
+          MaxAge: 3600
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [ src/handler.ts ]
+        Format: esm
+        OutExtension: [ .js=.mjs ]
+        Target: es2022
+        Minify: true
+        # The AWS SDK v3 is part of the Lambda Node.js runtime.
+        External: [ '@aws-sdk/*' ]
+
+  CostBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Sub ${AWS::StackName}-monthly-cost
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: 1
+          Unit: USD
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 1
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+
+Outputs:
+  FunctionUrl:
+    Description: Value for intervalTimerApiUrl in the frontend environment files (without the trailing slash).
+    Value: !GetAtt PresetsFunctionUrl.FunctionUrl
+  TableName:
+    Description: Value for TABLE_NAME when running the key-management script.
+    Value: !Ref Table
