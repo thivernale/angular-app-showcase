@@ -29,6 +29,7 @@ const DEFAULT_SETTINGS: Readonly<{
   playSound: boolean;
   exercisesText: string;
   videoUrl: string;
+  description: string;
 }> = {
   rounds: 10,
   work: 30,
@@ -37,6 +38,7 @@ const DEFAULT_SETTINGS: Readonly<{
   playSound: true,
   exercisesText: '',
   videoUrl: '',
+  description: '',
 };
 
 @Component({
@@ -228,6 +230,19 @@ const DEFAULT_SETTINGS: Readonly<{
           </div>
 
           <div class="d-flex flex-column gap-2 w-100" style="max-width: 320px;">
+            <label for="description" class="form-label fw-semibold"
+              >Description <span class="text-body-secondary fw-normal">(optional)</span></label
+            >
+            <textarea
+              class="form-control"
+              id="description"
+              rows="3"
+              [maxlength]="limits.description"
+              [ngModel]="description()"
+              (ngModelChange)="description.set($event)"
+              placeholder="Notes, e.g. equipment needed"
+            ></textarea>
+
             <label for="exercises" class="form-label fw-semibold"
               >Exercises <span class="text-body-secondary fw-normal">(optional)</span></label
             >
@@ -305,6 +320,7 @@ export class IntervalTimerComponent {
   playSound = model(DEFAULT_SETTINGS.playSound);
   exercisesText = model(DEFAULT_SETTINGS.exercisesText);
   videoUrl = model(DEFAULT_SETTINGS.videoUrl);
+  description = model(DEFAULT_SETTINGS.description);
 
   protected readonly videoId = computed(() => extractYouTubeVideoId(this.videoUrl()));
   private readonly videoPlayerContainer =
@@ -395,6 +411,7 @@ export class IntervalTimerComponent {
     this.playSound.set(config.playSound);
     this.exercisesText.set(config.exercises ?? '');
     this.videoUrl.set(config.videoUrl ?? '');
+    this.description.set(config.description ?? '');
     this.intro.set(config.intro ?? 0);
   }
 
@@ -411,6 +428,7 @@ export class IntervalTimerComponent {
       playSound: this.playSound(),
       exercises: this.exercisesText(),
       videoUrl: this.videoUrl(),
+      description: this.description(),
       intro: this.intro(),
     });
     this.newConfigName.set('');
@@ -450,6 +468,7 @@ export class IntervalTimerComponent {
     this.playSound.set(DEFAULT_SETTINGS.playSound);
     this.exercisesText.set(DEFAULT_SETTINGS.exercisesText);
     this.videoUrl.set(DEFAULT_SETTINGS.videoUrl);
+    this.description.set(DEFAULT_SETTINGS.description);
     this.intro.set(DEFAULT_SETTINGS.intro);
     this.newConfigName.set('');
     this.selectedConfigName.set('');

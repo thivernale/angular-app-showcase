@@ -607,6 +607,7 @@ describe('IntervalTimerComponent', () => {
       '#copy-config-link',
       '#exercises',
       '#videoUrl',
+      '#description',
     ];
 
     function visible(selector: string) {
@@ -761,6 +762,7 @@ describe('IntervalTimerComponent', () => {
       component.playSound.set(false);
       component.exercisesText.set('A\nB');
       component.videoUrl.set('https://www.youtube.com/watch?v=lhAEvAOPsiU');
+      component.description.set('Bands');
       component.intro.set(30);
       (component as any).newConfigName.set('foo');
       (component as any).selectedConfigName.set('bar');
@@ -773,6 +775,7 @@ describe('IntervalTimerComponent', () => {
       expect(component.playSound()).toBe(true);
       expect(component.exercisesText()).toBe('');
       expect(component.videoUrl()).toBe('');
+      expect(component.description()).toBe('');
       expect(component.intro()).toBe(0);
       expect((component as any).newConfigName()).toBe('');
       expect((component as any).selectedConfigName()).toBe('');
@@ -817,6 +820,7 @@ describe('IntervalTimerComponent', () => {
         playSound: false,
         exercises: '',
         videoUrl: '',
+        description: '',
         intro: 0,
       });
     });
@@ -1010,6 +1014,29 @@ describe('IntervalTimerComponent', () => {
       (component as any).loadSelectedConfig();
 
       expect(component.videoUrl()).toBe('');
+    });
+
+    it('saves and restores the description', () => {
+      component.description.set('Kettlebell 16 kg, mat');
+      (component as any).newConfigName.set('WithNotes');
+      (component as any).saveCurrentConfig();
+      component.description.set('');
+      (component as any).selectedConfigName.set('WithNotes');
+
+      (component as any).loadSelectedConfig();
+
+      expect(component.description()).toBe('Kettlebell 16 kg, mat');
+    });
+
+    it('clears the description when loading a config saved without one', () => {
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      configService.save({ name: 'Legacy', rounds: 5, work: 25, rest: 0, playSound: true });
+      component.description.set('Bands');
+      (component as any).selectedConfigName.set('Legacy');
+
+      (component as any).loadSelectedConfig();
+
+      expect(component.description()).toBe('');
     });
 
     it('includes the intro duration when saving', () => {
