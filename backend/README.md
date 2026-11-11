@@ -49,8 +49,18 @@ Check it: `curl -i <FunctionUrl>/me` must return `401`.
 
 ## Keys
 
+The script needs the table's real name, which CloudFormation generates (e.g. `<stack>-Table-1A2B3C4D5E6F`), and the
+region the stack was deployed to. Both come from the deployment:
+
 ```bash
-export TABLE_NAME=<TableName stack output>
+export AWS_REGION=<region chosen in sam deploy>
+export TABLE_NAME=$(aws cloudformation describe-stacks --stack-name <stack name> \
+  --query "Stacks[0].Outputs[?OutputKey=='TableName'].OutputValue" --output text)
+```
+
+A "Table ... not found" error means one of the two is wrong. Then:
+
+```bash
 npm run keys -- create me laptop     # prints the key once; keep it in a password manager
 npm run keys -- create me phone
 npm run keys -- list                 # profiles and labels, never keys

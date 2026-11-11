@@ -9,7 +9,7 @@
  * The table name comes from --table <name> or the TABLE_NAME environment variable.
  */
 import { randomBytes } from 'node:crypto';
-import { DynamoStore } from '../src/dynamo-store.js';
+import { createDynamoClient, DynamoStore } from '../src/dynamo-store.js';
 import { hashKey } from '../src/store.js';
 
 const NAME_PATTERN = /^[a-z0-9][a-z0-9_-]{0,39}$/;
@@ -48,7 +48,24 @@ function checkName(kind: string, value: string | undefined): string {
 
 async function main(): Promise<void> {
   const { table, command, args } = parseArgs(process.argv.slice(2));
-  const store = new DynamoStore(table);
+  const client = createDynamoClient();
+  const store = new DynamoStore(table, client);
+  try {
+    await run(store, command, args);
+  } catch (e) {
+    if (e instanceof Error && e.name === 'ResourceNotFoundException') {
+      const where = process.env['DYNAMODB_ENDPOINT'] || `region "${await client.config.region()}"`;
+      throw new Error(
+        `Table "${table}" not found in ${where}.\n` +
+          'Use the TableName stack output (a generated name, not "Table") and the region the stack was deployed to\n' +
+          '(set AWS_REGION or AWS_PROFILE). See backend/README.md, "Keys".',
+      );
+    }
+    throw e;
+  }
+}
+
+async function run(store: DynamoStore, command: string, args: string[]): Promise<void> {
 
   switch (command) {
     case 'create': {
