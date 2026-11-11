@@ -76,6 +76,7 @@ In the app, paste the key into the cloud field of the interval timer once per de
 | Preset name | 100 characters | Also enforced by the input field |
 | Exercises text | 10,000 characters | 100 lines of 80 characters is about 8,100 |
 | Video URL | 500 characters | |
+| Description | 500 characters | Free-text notes, shown in the setup only |
 | Numbers (rounds, work, rest, intro) | 0 to 100,000 | |
 | Request body | 64 KB | Fits the longest preset even with 4-byte characters |
 | Presets per profile | 200 | Counted with a counter item, so the check is cheap |

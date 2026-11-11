@@ -9,6 +9,7 @@ export interface Preset {
   playSound: boolean;
   exercises?: string;
   videoUrl?: string;
+  description?: string;
   intro?: number;
 }
 

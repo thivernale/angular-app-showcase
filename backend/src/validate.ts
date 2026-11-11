@@ -6,6 +6,7 @@ export const MAX_EXERCISES_LENGTH = 10_000;
 /** Room for the longest preset even when every character takes 4 bytes in UTF-8. */
 export const MAX_BODY_BYTES = 64 * 1024;
 export const MAX_VIDEO_URL_LENGTH = 500;
+export const MAX_DESCRIPTION_LENGTH = 500;
 export const MAX_NUMBER = 100_000;
 
 export type ValidationResult = { ok: true; preset: Preset } | { ok: false; error: string };
@@ -59,6 +60,12 @@ export function validatePreset(input: unknown): ValidationResult {
       return { ok: false, error: `videoUrl must be a string of at most ${MAX_VIDEO_URL_LENGTH} characters` };
     }
     preset.videoUrl = body['videoUrl'];
+  }
+  if (body['description'] !== undefined) {
+    if (typeof body['description'] !== 'string' || body['description'].length > MAX_DESCRIPTION_LENGTH) {
+      return { ok: false, error: `description must be a string of at most ${MAX_DESCRIPTION_LENGTH} characters` };
+    }
+    preset.description = body['description'];
   }
 
   return { ok: true, preset };
