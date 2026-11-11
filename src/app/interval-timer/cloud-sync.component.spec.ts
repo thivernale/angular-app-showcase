@@ -46,6 +46,31 @@ describe('CloudSyncComponent', () => {
       expect(query('#cloud-profile')?.textContent).toContain('Local only');
     });
 
+    it('marks the form up for password managers', () => {
+      const profile = query<HTMLInputElement>('#cloud-profile-name')!;
+      const key = query<HTMLInputElement>('#cloud-key')!;
+
+      expect(profile.getAttribute('autocomplete')).toBe('username');
+      expect(key.type).toBe('password');
+      expect(key.getAttribute('autocomplete')).toBe('current-password');
+      expect(key.form).toBe(profile.form);
+    });
+
+    it('connects with the key only, ignoring the profile label', async () => {
+      const profile = query<HTMLInputElement>('#cloud-profile-name')!;
+      profile.value = 'me';
+      profile.dispatchEvent(new Event('input'));
+      const key = query<HTMLInputElement>('#cloud-key')!;
+      key.value = 'secret';
+      key.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+
+      query<HTMLButtonElement>('#cloud-connect')!.click();
+      await fixture.whenStable();
+
+      expect(service.connect).toHaveBeenCalledWith('secret');
+    });
+
     it('enables Connect only once a key is typed', async () => {
       expect(query<HTMLButtonElement>('#cloud-connect')?.disabled).toBe(true);
 

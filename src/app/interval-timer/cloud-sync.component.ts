@@ -34,17 +34,33 @@ const STATUS_LABELS = {
           </button>
         } @else {
           <span id="cloud-profile"><i class="fa-solid fa-hard-drive me-1" aria-hidden="true"></i>Local only</span>
-          <form class="d-flex gap-2" (ngSubmit)="connect()">
+          <!--
+            Marked up as a sign-in form so the browser's password manager can save keys and offer them later;
+            the profile field only labels the saved entry and is not sent to the API.
+          -->
+          <form class="d-flex flex-wrap gap-2" (ngSubmit)="connect()">
+            <input
+              type="text"
+              class="form-control form-control-sm w-auto"
+              id="cloud-profile-name"
+              name="username"
+              [ngModel]="profileName()"
+              (ngModelChange)="profileName.set($event)"
+              placeholder="Profile"
+              aria-label="Profile name, for the password manager"
+              autocomplete="username"
+              [maxlength]="40"
+            />
             <input
               type="password"
               class="form-control form-control-sm w-auto"
               id="cloud-key"
-              name="cloudKey"
+              name="password"
               [ngModel]="key()"
               (ngModelChange)="key.set($event)"
               placeholder="Cloud key"
               aria-label="Cloud key"
-              autocomplete="off"
+              autocomplete="current-password"
             />
             <button type="submit" class="btn btn-sm btn-outline-secondary" id="cloud-connect" [disabled]="!canConnect()">
               Connect
@@ -58,6 +74,8 @@ const STATUS_LABELS = {
 export class CloudSyncComponent {
   protected readonly configService = inject(IntervalTimerConfigService);
   protected readonly key = signal('');
+  /** Label for the password manager entry only; the API identifies the profile from the key. */
+  protected readonly profileName = signal('');
   protected readonly statusLabel = computed(() => STATUS_LABELS[this.configService.cloudStatus()]);
   protected readonly canConnect = computed(
     () => this.key().trim() !== '' && this.configService.cloudStatus() !== 'connecting',
