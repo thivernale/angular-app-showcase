@@ -31,6 +31,24 @@ Operating instructions, API reference and limits: [`backend/README.md`](../backe
   | preset | `PROFILE#<profile>` | `PRESET#<name>` | `preset` (map), `updatedAt` |
   | counter | `PROFILE#<profile>` | `META` | `presetCount` |
 
+  **Why one table with prefixed keys.** This is the standard DynamoDB pattern (often called *single-table design*),
+  not a workaround.
+
+  In SQL terms, the table is like `items(pk, sk, …)` with the primary key `(pk, sk)`: rows are stored grouped by
+  `pk` and sorted by `sk`. The app reads it in two ways, both through that key:
+  - `GetItem` = `SELECT … WHERE pk = ? AND sk = ?`, a primary-key lookup (checking the key on every request).
+  - `Query` = `SELECT … WHERE pk = ? AND sk LIKE 'PRESET#%'`, a range read within one `pk` (loading a profile's
+    presets).
+
+  Both stay fast as the table grows, because they only touch the items they return. Anything not going through the
+  key (other filters, joins) needs a `Scan` of the whole table; the app never does that, only the admin script.
+
+  Because there are no joins, everything one request needs is kept under the same `pk`, so loading a profile is one
+  read. The prefixes take the place of separate tables: the `SK` prefix (`PRESET#`, `META`) says what kind of item a
+  row is, and the `PK` prefix (`KEY#`, `PROFILE#`) keeps key items and profile items from colliding. Separate tables
+  would not be faster, would each need part of the free tier's capacity, and would take several requests to load a
+  profile.
+
 - `src/handler.ts`: bearer key → hash → key item → profile (never taken from the request). Routes `GET /me`,
   `GET /presets`, `PUT /presets` (body carries the name), `DELETE /presets?name=`. Throttling maps to `503`, other
   failures to `500` without internals.
