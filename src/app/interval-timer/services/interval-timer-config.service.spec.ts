@@ -7,6 +7,8 @@ import { IntervalTimerConfigService } from './interval-timer-config.service';
 const STORAGE_KEY = 'interval-timer-configs';
 
 const sampleConfig: IntervalTimerConfig = {
+  id: 'p1',
+  folderId: 'default',
   name: '10x30/10',
   rounds: 10,
   work: 30,

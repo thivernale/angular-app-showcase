@@ -17,8 +17,8 @@ import { IntervalTimerConfigService } from './interval-timer-config.service';
 const API = 'https://api.example.test';
 const KEY = 'k'.repeat(43);
 
-const tabata: IntervalTimerConfig = { name: 'Tabata', rounds: 8, work: 20, rest: 10, playSound: true };
-const emom: IntervalTimerConfig = { name: 'EMOM', rounds: 10, work: 60, rest: 0, playSound: false };
+const tabata: IntervalTimerConfig = { id: 'tabata', folderId: 'default', name: 'Tabata', rounds: 8, work: 20, rest: 10, playSound: true };
+const emom: IntervalTimerConfig = { id: 'emom', folderId: 'default', name: 'EMOM', rounds: 10, work: 60, rest: 0, playSound: false };
 
 describe('IntervalTimerConfigService (cloud mode)', () => {
   let http: HttpTestingController;

@@ -710,7 +710,7 @@ describe('IntervalTimerComponent', () => {
 
     function selectSavedWorkout(name: string) {
       TestBed.inject(IntervalTimerConfigService).save({
-        name,
+        id: 'p1', folderId: 'default', name,
         rounds: 2,
         work: 5,
         rest: 0,
@@ -813,6 +813,8 @@ describe('IntervalTimerComponent', () => {
 
       const configService = TestBed.inject(IntervalTimerConfigService);
       expect(configService.load('My Config')).toEqual({
+        id: expect.any(String),
+        folderId: 'default',
         name: 'My Config',
         rounds: 8,
         work: 20,
@@ -827,7 +829,7 @@ describe('IntervalTimerComponent', () => {
 
     it('overwrites the selected configuration when no new name is typed', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
-      configService.save({ name: 'MyWorkout', rounds: 5, work: 20, rest: 0, playSound: true });
+      configService.save({ id: 'p2', folderId: 'default', name: 'MyWorkout', rounds: 5, work: 20, rest: 0, playSound: true });
       (component as any).selectedConfigName.set('MyWorkout');
       component.rounds.set(9);
       (component as any).newConfigName.set('');
@@ -909,7 +911,7 @@ describe('IntervalTimerComponent', () => {
 
     it('loads a saved configuration into the settings signals', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
-      configService.save({ name: 'Saved', rounds: 6, work: 40, rest: 15, playSound: false });
+      configService.save({ id: 'p3', folderId: 'default', name: 'Saved', rounds: 6, work: 40, rest: 15, playSound: false });
       (component as any).selectedConfigName.set('Saved');
 
       (component as any).loadSelectedConfig();
@@ -922,7 +924,7 @@ describe('IntervalTimerComponent', () => {
 
     it('removes the selected configuration on delete', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
-      configService.save({ name: 'ToDelete', rounds: 1, work: 1, rest: 0, playSound: true });
+      configService.save({ id: 'p4', folderId: 'default', name: 'ToDelete', rounds: 1, work: 1, rest: 0, playSound: true });
       (component as any).selectedConfigName.set('ToDelete');
 
       (component as any).deleteSelectedConfig();
@@ -934,10 +936,10 @@ describe('IntervalTimerComponent', () => {
     it('exposes the saved configs list reactively', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
 
-      configService.save({ name: 'A', rounds: 1, work: 1, rest: 0, playSound: true });
+      configService.save({ id: 'p5', folderId: 'default', name: 'A', rounds: 1, work: 1, rest: 0, playSound: true });
 
       expect((component as any).savedConfigs()).toEqual([
-        { name: 'A', rounds: 1, work: 1, rest: 0, playSound: true },
+        { id: 'p5', folderId: 'default', name: 'A', rounds: 1, work: 1, rest: 0, playSound: true },
       ]);
     });
 
@@ -956,7 +958,7 @@ describe('IntervalTimerComponent', () => {
 
     it('restores the exercise text on load', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
-      configService.save({ name: 'WithExercises', rounds: 4, work: 20, rest: 5, playSound: true, exercises: 'X\nY' });
+      configService.save({ id: 'p6', folderId: 'default', name: 'WithExercises', rounds: 4, work: 20, rest: 5, playSound: true, exercises: 'X\nY' });
       (component as any).selectedConfigName.set('WithExercises');
 
       (component as any).loadSelectedConfig();
@@ -966,7 +968,7 @@ describe('IntervalTimerComponent', () => {
 
     it('resets the exercise text to empty when loading a config saved before this field existed', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
-      configService.save({ name: 'Legacy', rounds: 5, work: 25, rest: 0, playSound: true });
+      configService.save({ id: 'p7', folderId: 'default', name: 'Legacy', rounds: 5, work: 25, rest: 0, playSound: true });
       component.exercisesText.set('leftover text');
       (component as any).selectedConfigName.set('Legacy');
 
@@ -991,7 +993,7 @@ describe('IntervalTimerComponent', () => {
     it('restores the video URL on load', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
       configService.save({
-        name: 'WithVideo',
+        id: 'p8', folderId: 'default', name: 'WithVideo',
         rounds: 4,
         work: 20,
         rest: 5,
@@ -1007,7 +1009,7 @@ describe('IntervalTimerComponent', () => {
 
     it('resets the video URL to empty when loading a config saved before this field existed', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
-      configService.save({ name: 'Legacy', rounds: 5, work: 25, rest: 0, playSound: true });
+      configService.save({ id: 'p9', folderId: 'default', name: 'Legacy', rounds: 5, work: 25, rest: 0, playSound: true });
       component.videoUrl.set('https://www.youtube.com/watch?v=lhAEvAOPsiU');
       (component as any).selectedConfigName.set('Legacy');
 
@@ -1030,7 +1032,7 @@ describe('IntervalTimerComponent', () => {
 
     it('clears the description when loading a config saved without one', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
-      configService.save({ name: 'Legacy', rounds: 5, work: 25, rest: 0, playSound: true });
+      configService.save({ id: 'p10', folderId: 'default', name: 'Legacy', rounds: 5, work: 25, rest: 0, playSound: true });
       component.description.set('Bands');
       (component as any).selectedConfigName.set('Legacy');
 
@@ -1054,7 +1056,7 @@ describe('IntervalTimerComponent', () => {
 
     it('restores the intro duration on load', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
-      configService.save({ name: 'WithIntro', rounds: 4, work: 20, rest: 5, playSound: true, intro: 15 });
+      configService.save({ id: 'p11', folderId: 'default', name: 'WithIntro', rounds: 4, work: 20, rest: 5, playSound: true, intro: 15 });
       (component as any).selectedConfigName.set('WithIntro');
 
       (component as any).loadSelectedConfig();
@@ -1064,7 +1066,7 @@ describe('IntervalTimerComponent', () => {
 
     it('resets the intro duration to 0 when loading a config saved before this field existed', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
-      configService.save({ name: 'Legacy', rounds: 5, work: 25, rest: 0, playSound: true });
+      configService.save({ id: 'p12', folderId: 'default', name: 'Legacy', rounds: 5, work: 25, rest: 0, playSound: true });
       component.intro.set(15);
       (component as any).selectedConfigName.set('Legacy');
 
@@ -1077,7 +1079,7 @@ describe('IntervalTimerComponent', () => {
   describe('copy link', () => {
     it('copies a URL with the selected config name as the ?config= param', async () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
-      configService.save({ name: 'My Workout', rounds: 5, work: 20, rest: 0, playSound: true });
+      configService.save({ id: 'p13', folderId: 'default', name: 'My Workout', rounds: 5, work: 20, rest: 0, playSound: true });
       (component as any).selectedConfigName.set('My Workout');
 
       await (component as any).copyConfigLink();
@@ -1089,7 +1091,7 @@ describe('IntervalTimerComponent', () => {
 
     it('shows a success alert after copying', async () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
-      configService.save({ name: 'My Workout', rounds: 5, work: 20, rest: 0, playSound: true });
+      configService.save({ id: 'p14', folderId: 'default', name: 'My Workout', rounds: 5, work: 20, rest: 0, playSound: true });
       (component as any).selectedConfigName.set('My Workout');
       const alertService = TestBed.inject(AlertService);
       const showAlertSpy = vi.spyOn(alertService, 'showAlert');
@@ -1108,7 +1110,7 @@ describe('IntervalTimerComponent', () => {
 
     it('renders an enabled copy-link button once a config is selected', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
-      configService.save({ name: 'My Workout', rounds: 5, work: 20, rest: 0, playSound: true });
+      configService.save({ id: 'p15', folderId: 'default', name: 'My Workout', rounds: 5, work: 20, rest: 0, playSound: true });
       (component as any).selectedConfigName.set('My Workout');
       fixture.detectChanges();
 
@@ -1140,7 +1142,7 @@ describe('IntervalTimerComponent', () => {
         ],
       });
       TestBed.inject(IntervalTimerConfigService).save({
-        name: 'FromUrl', rounds: 7, work: 15, rest: 5, playSound: true,
+        id: 'p16', folderId: 'default', name: 'FromUrl', rounds: 7, work: 15, rest: 5, playSound: true,
       });
 
       const freshComponent = TestBed.createComponent(IntervalTimerComponent).componentInstance;
