@@ -72,6 +72,12 @@ describe('IntervalTimerComponent', () => {
     localStorage.clear();
   });
 
+  /** Selects a saved workout in the dropdown by its (unique) name; unknown names select nothing that exists. */
+  function selectByName(name: string) {
+    const config = TestBed.inject(IntervalTimerConfigService).findUniqueByName(name);
+    (component as any).selectedConfigId.set(config?.id ?? name);
+  }
+
   // These tests drive the wall-clock-based `tick()`/`advancePhase()` logic directly
   // (via manual Date jumps + explicit tick() calls) rather than relying on the real
   // `setInterval` firing under fake timers, since the component's whole design point
@@ -709,7 +715,7 @@ describe('IntervalTimerComponent', () => {
       return fixture.debugElement.query(By.css('#timer-title')).nativeElement.textContent.trim();
     }
 
-    function selectSavedWorkout(name: string) {
+    function loadSavedWorkout(name: string) {
       TestBed.inject(IntervalTimerConfigService).save({
         id: 'p1', folderId: 'default', name,
         rounds: 2,
@@ -717,37 +723,41 @@ describe('IntervalTimerComponent', () => {
         rest: 0,
         playSound: true,
       });
-      (component as any).selectedConfigName.set(name);
+      selectByName(name);
+      (component as any).loadSelectedConfig();
     }
 
-    it('shows "Interval Timer" before the session starts, even with a workout selected', () => {
-      selectSavedWorkout('Chest Day');
+    it('shows "Interval Timer" before the session starts, even with a workout loaded', () => {
+      loadSavedWorkout('Chest Day');
 
       expect(heading()).toBe('Interval Timer');
     });
 
-    it('shows the selected workout name while running', () => {
-      selectSavedWorkout('Chest Day');
+    it('shows the loaded workout name while running', () => {
+      loadSavedWorkout('Chest Day');
       start(2, 5, 0);
 
       expect(heading()).toBe('Chest Day');
     });
 
-    it('shows "Interval Timer" while running when no workout is selected', () => {
+    it('shows "Interval Timer" while running when no workout is loaded', () => {
       start(2, 5, 0);
 
       expect(heading()).toBe('Interval Timer');
     });
 
-    it('shows "Interval Timer" while running when the selected name is not a saved workout', () => {
-      (component as any).selectedConfigName.set('Unknown');
+    it('shows "Interval Timer" while running when a workout is only selected, not loaded', () => {
+      TestBed.inject(IntervalTimerConfigService).save({
+        id: 'p1', folderId: 'default', name: 'Chest Day', rounds: 2, work: 5, rest: 0, playSound: true,
+      });
+      selectByName('Chest Day');
       start(2, 5, 0);
 
       expect(heading()).toBe('Interval Timer');
     });
 
     it('goes back to "Interval Timer" after stopping', () => {
-      selectSavedWorkout('Chest Day');
+      loadSavedWorkout('Chest Day');
       start(2, 5, 0);
       stop();
 
@@ -766,7 +776,7 @@ describe('IntervalTimerComponent', () => {
       component.description.set('Bands');
       component.intro.set(30);
       (component as any).newConfigName.set('foo');
-      (component as any).selectedConfigName.set('bar');
+      selectByName('bar');
 
       (component as any).resetSettings();
 
@@ -779,7 +789,7 @@ describe('IntervalTimerComponent', () => {
       expect(component.description()).toBe('');
       expect(component.intro()).toBe(0);
       expect((component as any).newConfigName()).toBe('');
-      expect((component as any).selectedConfigName()).toBe('');
+      expect((component as any).selectedConfigId()).toBe('');
     });
 
     it('requires at least one round', () => {
@@ -982,7 +992,7 @@ describe('IntervalTimerComponent', () => {
       (component as any).saveCurrentConfig();
 
       const configService = TestBed.inject(IntervalTimerConfigService);
-      expect(configService.load('My Config')).toEqual({
+      expect(configService.findUniqueByName('My Config')).toEqual({
         id: expect.any(String),
         folderId: 'default',
         name: 'My Config',
@@ -997,17 +1007,31 @@ describe('IntervalTimerComponent', () => {
       });
     });
 
-    it('overwrites the selected configuration when no new name is typed', () => {
+    it('updates the loaded workout, keeping its name, when no name is typed', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
       configService.save({ id: 'p2', folderId: 'default', name: 'MyWorkout', rounds: 5, work: 20, rest: 0, playSound: true });
-      (component as any).selectedConfigName.set('MyWorkout');
+      selectByName('MyWorkout');
+      (component as any).loadSelectedConfig();
       component.rounds.set(9);
       (component as any).newConfigName.set('');
 
       (component as any).saveCurrentConfig();
 
       expect(configService.configs()).toHaveLength(1);
-      expect(configService.load('MyWorkout')?.rounds).toBe(9);
+      expect(configService.load('p2')?.rounds).toBe(9);
+      expect(configService.load('p2')?.name).toBe('MyWorkout');
+    });
+
+    it('does not update a workout that is only selected, not loaded', () => {
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      configService.save({ id: 'p2', folderId: 'default', name: 'MyWorkout', rounds: 5, work: 20, rest: 0, playSound: true });
+      selectByName('MyWorkout');
+      component.rounds.set(9);
+
+      (component as any).saveCurrentConfig();
+
+      expect(configService.configs()).toHaveLength(2);
+      expect(configService.load('p2')?.rounds).toBe(5);
     });
 
     it('generates a pattern-based name when the name field is left blank and rest is 0', () => {
@@ -1019,7 +1043,7 @@ describe('IntervalTimerComponent', () => {
       (component as any).saveCurrentConfig();
 
       const configService = TestBed.inject(IntervalTimerConfigService);
-      expect(configService.load('10x30')).toBeTruthy();
+      expect(configService.findUniqueByName('10x30')).toBeTruthy();
     });
 
     it('generates a pattern-based name including rest when rest is greater than 0', () => {
@@ -1031,7 +1055,7 @@ describe('IntervalTimerComponent', () => {
       (component as any).saveCurrentConfig();
 
       const configService = TestBed.inject(IntervalTimerConfigService);
-      expect(configService.load('10x30/10')).toBeTruthy();
+      expect(configService.findUniqueByName('10x30/10')).toBeTruthy();
     });
 
     it('includes the get-ready time in the generated name when it is greater than 0', () => {
@@ -1044,45 +1068,25 @@ describe('IntervalTimerComponent', () => {
       (component as any).saveCurrentConfig();
 
       const configService = TestBed.inject(IntervalTimerConfigService);
-      expect(configService.load('10x30/10 (10s get ready)')).toBeTruthy();
+      expect(configService.findUniqueByName('10x30/10 (10s get ready)')).toBeTruthy();
     });
 
-    it('does not let a config with a get-ready time overwrite an otherwise-identical one without', () => {
+    it('marks a silent workout in the generated name', () => {
       component.rounds.set(10);
       component.work.set(30);
       component.rest.set(0);
-      (component as any).newConfigName.set('');
-
-      component.intro.set(0);
-      (component as any).saveCurrentConfig();
-      component.intro.set(15);
-      (component as any).saveCurrentConfig();
-
-      const configService = TestBed.inject(IntervalTimerConfigService);
-      expect(configService.configs()).toHaveLength(2);
-    });
-
-    it('does not let a silent config overwrite an otherwise-identical config with sound', () => {
-      component.rounds.set(10);
-      component.work.set(30);
-      component.rest.set(0);
-      (component as any).newConfigName.set('');
-
-      component.playSound.set(true);
-      (component as any).saveCurrentConfig();
       component.playSound.set(false);
+
       (component as any).saveCurrentConfig();
 
       const configService = TestBed.inject(IntervalTimerConfigService);
-      expect(configService.configs()).toHaveLength(2);
-      expect(configService.configs().some(c => c.playSound === true)).toBe(true);
-      expect(configService.configs().some(c => c.playSound === false)).toBe(true);
+      expect(configService.findUniqueByName('10x30 (silent)')).toBeTruthy();
     });
 
     it('loads a saved configuration into the settings signals', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
       configService.save({ id: 'p3', folderId: 'default', name: 'Saved', rounds: 6, work: 40, rest: 15, playSound: false });
-      (component as any).selectedConfigName.set('Saved');
+      selectByName('Saved');
 
       (component as any).loadSelectedConfig();
 
@@ -1095,12 +1099,116 @@ describe('IntervalTimerComponent', () => {
     it('removes the selected configuration on delete', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
       configService.save({ id: 'p4', folderId: 'default', name: 'ToDelete', rounds: 1, work: 1, rest: 0, playSound: true });
-      (component as any).selectedConfigName.set('ToDelete');
+      selectByName('ToDelete');
 
       (component as any).deleteSelectedConfig();
 
-      expect(configService.load('ToDelete')).toBeUndefined();
-      expect((component as any).selectedConfigName()).toBe('');
+      expect(configService.findUniqueByName('ToDelete')).toBeUndefined();
+      expect((component as any).selectedConfigId()).toBe('');
+    });
+
+    describe('save rules', () => {
+      let configService: IntervalTimerConfigService;
+
+      beforeEach(() => {
+        configService = TestBed.inject(IntervalTimerConfigService);
+        configService.save({ id: 'tabata', folderId: 'default', name: 'Tabata', rounds: 8, work: 20, rest: 10, playSound: true });
+        fixture.detectChanges();
+      });
+
+      const button = (selector: string) => fixture.debugElement.query(By.css(selector));
+
+      function loadTabata() {
+        selectByName('Tabata');
+        (component as any).loadSelectedConfig();
+        fixture.detectChanges();
+      }
+
+      it('offers only Save while nothing is loaded, and saves under the generated name', () => {
+        expect(button('#save-config')).not.toBeNull();
+        expect(button('#save-config-as-new')).toBeNull();
+
+        (component as any).saveCurrentConfig();
+
+        const saved = configService.findUniqueByName('10x30');
+        expect(saved?.folderId).toBe('default');
+        expect(saved?.id).not.toBe('tabata');
+      });
+
+      it('renames the loaded workout in place when a name is typed', () => {
+        loadTabata();
+        expect(button('#save-config-as-new')).not.toBeNull();
+        (component as any).newConfigName.set('Tabata EMOM');
+
+        (component as any).saveCurrentConfig();
+
+        expect(configService.configs()).toHaveLength(1);
+        expect(configService.load('tabata')?.name).toBe('Tabata EMOM');
+        expect((component as any).newConfigName()).toBe('');
+      });
+
+      it('saves a loaded workout as a new one, auto-renamed in the same folder', () => {
+        loadTabata();
+
+        (component as any).saveAsNewConfig();
+
+        expect(configService.configs()).toHaveLength(2);
+        const copy = configService.findUniqueByName('Tabata (2)');
+        expect(copy?.id).not.toBe('tabata');
+        expect(copy?.folderId).toBe('default');
+        expect((component as any).selectedConfigId()).toBe(copy?.id);
+      });
+
+      it('unloads on folder switch; Save then copies the workout, keeping its name', () => {
+        const kb = configService.createFolder('Kettlebell')!;
+        loadTabata();
+
+        (component as any).switchFolder(kb.id);
+        fixture.detectChanges();
+        expect(button('#save-config-as-new')).toBeNull();
+        (component as any).saveCurrentConfig();
+
+        expect(configService.load('tabata')?.folderId).toBe('default');
+        const copies = configService.configs().filter(c => c.folderId === kb.id);
+        expect(copies.map(c => c.name)).toEqual(['Tabata']);
+        expect(copies[0].id).not.toBe('tabata');
+      });
+
+      it('forgets the loaded name after Reset', () => {
+        loadTabata();
+
+        (component as any).resetSettings();
+        (component as any).saveCurrentConfig();
+
+        expect(configService.findUniqueByName('10x30')).toBeTruthy();
+        expect(configService.load('tabata')?.rounds).toBe(8);
+      });
+
+      it('unloads the workout when it is deleted', () => {
+        loadTabata();
+
+        (component as any).deleteSelectedConfig();
+        fixture.detectChanges();
+
+        expect(button('#save-config-as-new')).toBeNull();
+        (component as any).saveCurrentConfig();
+        expect(configService.findUniqueByName('8x20/10')).toBeTruthy();
+      });
+
+      it('unloads the workout when its folder is deleted', () => {
+        const kb = configService.createFolder('Kettlebell')!;
+        configService.save({ id: 'swing', folderId: kb.id, name: 'Swing', rounds: 3, work: 30, rest: 0, playSound: true });
+        (component as any).switchFolder(kb.id);
+        selectByName('Swing');
+        (component as any).loadSelectedConfig();
+
+        (component as any).confirmFolderDelete();
+        fixture.detectChanges();
+
+        expect(button('#save-config-as-new')).toBeNull();
+        (component as any).saveCurrentConfig();
+        expect(configService.findUniqueByName('3x30')?.folderId).toBe('default');
+      });
     });
 
     it('exposes the saved configs list reactively', () => {
@@ -1123,13 +1231,13 @@ describe('IntervalTimerComponent', () => {
       (component as any).saveCurrentConfig();
 
       const configService = TestBed.inject(IntervalTimerConfigService);
-      expect(configService.load('WithExercises')?.exercises).toBe('A\nB');
+      expect(configService.findUniqueByName('WithExercises')?.exercises).toBe('A\nB');
     });
 
     it('restores the exercise text on load', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
       configService.save({ id: 'p6', folderId: 'default', name: 'WithExercises', rounds: 4, work: 20, rest: 5, playSound: true, exercises: 'X\nY' });
-      (component as any).selectedConfigName.set('WithExercises');
+      selectByName('WithExercises');
 
       (component as any).loadSelectedConfig();
 
@@ -1140,7 +1248,7 @@ describe('IntervalTimerComponent', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
       configService.save({ id: 'p7', folderId: 'default', name: 'Legacy', rounds: 5, work: 25, rest: 0, playSound: true });
       component.exercisesText.set('leftover text');
-      (component as any).selectedConfigName.set('Legacy');
+      selectByName('Legacy');
 
       (component as any).loadSelectedConfig();
 
@@ -1157,7 +1265,7 @@ describe('IntervalTimerComponent', () => {
       (component as any).saveCurrentConfig();
 
       const configService = TestBed.inject(IntervalTimerConfigService);
-      expect(configService.load('WithVideo')?.videoUrl).toBe('https://www.youtube.com/watch?v=lhAEvAOPsiU');
+      expect(configService.findUniqueByName('WithVideo')?.videoUrl).toBe('https://www.youtube.com/watch?v=lhAEvAOPsiU');
     });
 
     it('restores the video URL on load', () => {
@@ -1170,7 +1278,7 @@ describe('IntervalTimerComponent', () => {
         playSound: true,
         videoUrl: 'https://www.youtube.com/watch?v=lhAEvAOPsiU',
       });
-      (component as any).selectedConfigName.set('WithVideo');
+      selectByName('WithVideo');
 
       (component as any).loadSelectedConfig();
 
@@ -1181,7 +1289,7 @@ describe('IntervalTimerComponent', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
       configService.save({ id: 'p9', folderId: 'default', name: 'Legacy', rounds: 5, work: 25, rest: 0, playSound: true });
       component.videoUrl.set('https://www.youtube.com/watch?v=lhAEvAOPsiU');
-      (component as any).selectedConfigName.set('Legacy');
+      selectByName('Legacy');
 
       (component as any).loadSelectedConfig();
 
@@ -1193,7 +1301,7 @@ describe('IntervalTimerComponent', () => {
       (component as any).newConfigName.set('WithNotes');
       (component as any).saveCurrentConfig();
       component.description.set('');
-      (component as any).selectedConfigName.set('WithNotes');
+      selectByName('WithNotes');
 
       (component as any).loadSelectedConfig();
 
@@ -1204,7 +1312,7 @@ describe('IntervalTimerComponent', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
       configService.save({ id: 'p10', folderId: 'default', name: 'Legacy', rounds: 5, work: 25, rest: 0, playSound: true });
       component.description.set('Bands');
-      (component as any).selectedConfigName.set('Legacy');
+      selectByName('Legacy');
 
       (component as any).loadSelectedConfig();
 
@@ -1221,13 +1329,13 @@ describe('IntervalTimerComponent', () => {
       (component as any).saveCurrentConfig();
 
       const configService = TestBed.inject(IntervalTimerConfigService);
-      expect(configService.load('WithIntro')?.intro).toBe(15);
+      expect(configService.findUniqueByName('WithIntro')?.intro).toBe(15);
     });
 
     it('restores the intro duration on load', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
       configService.save({ id: 'p11', folderId: 'default', name: 'WithIntro', rounds: 4, work: 20, rest: 5, playSound: true, intro: 15 });
-      (component as any).selectedConfigName.set('WithIntro');
+      selectByName('WithIntro');
 
       (component as any).loadSelectedConfig();
 
@@ -1238,7 +1346,7 @@ describe('IntervalTimerComponent', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
       configService.save({ id: 'p12', folderId: 'default', name: 'Legacy', rounds: 5, work: 25, rest: 0, playSound: true });
       component.intro.set(15);
-      (component as any).selectedConfigName.set('Legacy');
+      selectByName('Legacy');
 
       (component as any).loadSelectedConfig();
 
@@ -1247,22 +1355,20 @@ describe('IntervalTimerComponent', () => {
   });
 
   describe('copy link', () => {
-    it('copies a URL with the selected config name as the ?config= param', async () => {
+    it('copies a URL with the selected workout id as the ?config= param', async () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
       configService.save({ id: 'p13', folderId: 'default', name: 'My Workout', rounds: 5, work: 20, rest: 0, playSound: true });
-      (component as any).selectedConfigName.set('My Workout');
+      selectByName('My Workout');
 
       await (component as any).copyConfigLink();
 
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-        `${location.origin}${location.pathname}?config=My%20Workout`,
-      );
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${location.origin}${location.pathname}?config=p13`);
     });
 
     it('shows a success alert after copying', async () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
       configService.save({ id: 'p14', folderId: 'default', name: 'My Workout', rounds: 5, work: 20, rest: 0, playSound: true });
-      (component as any).selectedConfigName.set('My Workout');
+      selectByName('My Workout');
       const alertService = TestBed.inject(AlertService);
       const showAlertSpy = vi.spyOn(alertService, 'showAlert');
 
@@ -1281,7 +1387,7 @@ describe('IntervalTimerComponent', () => {
     it('renders an enabled copy-link button once a config is selected', () => {
       const configService = TestBed.inject(IntervalTimerConfigService);
       configService.save({ id: 'p15', folderId: 'default', name: 'My Workout', rounds: 5, work: 20, rest: 0, playSound: true });
-      (component as any).selectedConfigName.set('My Workout');
+      selectByName('My Workout');
       fixture.detectChanges();
 
       const button = fixture.debugElement.query(By.css('#copy-config-link')).nativeElement;
@@ -1320,6 +1426,47 @@ describe('IntervalTimerComponent', () => {
       expect(freshComponent.rounds()).toBe(7);
       expect(freshComponent.work()).toBe(15);
       expect(freshComponent.rest()).toBe(5);
+    });
+
+    it("loads the workout with the id in ?config=, opening its folder", () => {
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        imports: [IntervalTimerComponent],
+        providers: [
+          { provide: YouTubePlayerService, useClass: FakeYouTubePlayerService },
+          { provide: ActivatedRoute, useValue: activatedRouteStub({ config: 'swing' }) },
+        ],
+      });
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      const kb = configService.createFolder('Kettlebell')!;
+      configService.save({ id: 'swing', folderId: kb.id, name: 'Swing', rounds: 3, work: 30, rest: 0, playSound: true });
+
+      const freshComponent = TestBed.createComponent(IntervalTimerComponent).componentInstance;
+
+      expect(freshComponent.rounds()).toBe(3);
+      expect(configService.openFolderId()).toBe(kb.id);
+      expect((freshComponent as any).selectedConfigId()).toBe('swing');
+      expect((freshComponent as any).loadedId()).toBe('swing');
+    });
+
+    it('loads nothing for an old name link when two workouts share the name', () => {
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        imports: [IntervalTimerComponent],
+        providers: [
+          { provide: YouTubePlayerService, useClass: FakeYouTubePlayerService },
+          { provide: ActivatedRoute, useValue: activatedRouteStub({ config: 'Tabata' }) },
+        ],
+      });
+      const configService = TestBed.inject(IntervalTimerConfigService);
+      const kb = configService.createFolder('Kettlebell')!;
+      configService.save({ id: 'a', folderId: 'default', name: 'Tabata', rounds: 3, work: 30, rest: 0, playSound: true });
+      configService.save({ id: 'b', folderId: kb.id, name: 'Tabata', rounds: 4, work: 30, rest: 0, playSound: true });
+
+      const freshComponent = TestBed.createComponent(IntervalTimerComponent).componentInstance;
+
+      expect(freshComponent.rounds()).toBe(10);
+      expect((freshComponent as any).loadedId()).toBeNull();
     });
 
     it('silently ignores an unknown config name in the query param', () => {
