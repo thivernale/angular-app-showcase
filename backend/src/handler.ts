@@ -1,9 +1,10 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
 import { DynamoStore } from './dynamo-store.js';
-import { hashKey, Store } from './store.js';
-import { MAX_BODY_BYTES, validatePreset } from './validate.js';
+import { DEFAULT_FOLDER_ID, hashKey, Store } from './store.js';
+import { isValidId, MAX_BODY_BYTES, validateFolder, validatePreset } from './validate.js';
 
 export const MAX_PRESETS_PER_PROFILE = 200;
+export const MAX_FOLDERS_PER_PROFILE = 50;
 const MIN_KEY_LENGTH = 20;
 const MAX_KEY_LENGTH = 200;
 const THROTTLING_ERRORS = new Set(['ProvisionedThroughputExceededException', 'ThrottlingException']);
@@ -19,6 +20,14 @@ function json(statusCode: number, body: unknown): Response {
 }
 
 const error = (statusCode: number, message: string) => json(statusCode, { error: message });
+
+const noContent = (): Response => ({ statusCode: 204, headers: { 'cache-control': 'no-store' } });
+
+/** The `id` query parameter, or undefined when it is missing or not a valid id. */
+function queryId(event: APIGatewayProxyEventV2): string | undefined {
+  const id = event.queryStringParameters?.['id'];
+  return isValidId(id) ? id : undefined;
+}
 
 function bearerKey(event: APIGatewayProxyEventV2): string | undefined {
   const header = event.headers?.['authorization'];
@@ -62,11 +71,12 @@ export function createHandler(store: Store, now: () => Date = () => new Date()) 
         return json(200, { profile, label: keyRecord.label });
       }
 
+      if (path === '/library' && method === 'GET') {
+        return json(200, await store.listLibrary(profile));
+      }
+
       if (path === '/presets') {
         switch (method) {
-          case 'GET':
-            return json(200, { presets: await store.listPresets(profile) });
-
           case 'PUT': {
             const body = readBody(event);
             if (!body.ok) {
@@ -76,6 +86,10 @@ export function createHandler(store: Store, now: () => Date = () => new Date()) 
             if (!result.ok) {
               return error(400, result.error);
             }
+            const { folderId } = result.preset;
+            if (folderId !== DEFAULT_FOLDER_ID && !(await store.folderExists(profile, folderId))) {
+              return error(404, 'Folder not found');
+            }
             const stored = { ...result.preset, updatedAt: now().toISOString() };
             if (!(await store.putPreset(profile, stored, MAX_PRESETS_PER_PROFILE))) {
               return error(409, `A profile can hold at most ${MAX_PRESETS_PER_PROFILE} presets`);
@@ -84,12 +98,45 @@ export function createHandler(store: Store, now: () => Date = () => new Date()) 
           }
 
           case 'DELETE': {
-            const name = event.queryStringParameters?.['name']?.trim();
-            if (!name) {
-              return error(400, 'name query parameter is required');
+            const id = queryId(event);
+            if (!id) {
+              return error(400, 'id query parameter is required');
             }
-            await store.deletePreset(profile, name);
-            return { statusCode: 204, headers: { 'cache-control': 'no-store' } };
+            await store.deletePreset(profile, id);
+            return noContent();
+          }
+        }
+      }
+
+      if (path === '/folders') {
+        switch (method) {
+          case 'PUT': {
+            const body = readBody(event);
+            if (!body.ok) {
+              return body.response;
+            }
+            const result = validateFolder(body.value);
+            if (!result.ok) {
+              return error(400, result.error);
+            }
+            const stored = { ...result.folder, updatedAt: now().toISOString() };
+            if (!(await store.putFolder(profile, stored, MAX_FOLDERS_PER_PROFILE))) {
+              return error(409, `A profile can hold at most ${MAX_FOLDERS_PER_PROFILE} folders`);
+            }
+            return json(200, { folder: stored });
+          }
+
+          case 'DELETE': {
+            const id = queryId(event);
+            if (!id) {
+              return error(400, 'id query parameter is required');
+            }
+            if (id === DEFAULT_FOLDER_ID) {
+              return error(400, 'The default folder cannot be deleted');
+            }
+            // Also deletes the folder's presets, including ones saved from other devices.
+            await store.deleteFolder(profile, id);
+            return noContent();
           }
         }
       }
