@@ -9,6 +9,10 @@ export const INTERVAL_TIMER_API_URL = new InjectionToken<string>('INTERVAL_TIMER
 
 /** Presets of the anonymous (device-only) mode. */
 export const LOCAL_PRESETS_KEY = 'interval-timer-configs';
+/** Folders of the anonymous mode (the default folder is never stored). */
+export const LOCAL_FOLDERS_KEY = 'interval-timer-folders';
+/** Folder last opened in the anonymous mode. */
+export const LOCAL_OPEN_FOLDER_KEY = 'interval-timer-open-folder';
 /** Access key pasted on this device, if any. */
 export const CLOUD_KEY_KEY = 'interval-timer-cloud-key';
 /** Profile the access key belongs to. */
