@@ -1,7 +1,11 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { IntervalTimerConfig } from '../types/interval-timer-config.interface';
+import {
+  IntervalTimerConfig,
+  IntervalTimerFolder,
+  IntervalTimerLibrary,
+} from '../types/interval-timer-config.interface';
 import { CLOUD_KEY_KEY, CLOUD_PROFILE_KEY, INTERVAL_TIMER_API_URL } from './cloud-storage';
 
 export interface CloudIdentity {
@@ -48,23 +52,36 @@ export class CloudConnectionService {
     this.profileSignal.set(null);
   }
 
-  async listPresets(): Promise<IntervalTimerConfig[]> {
-    const { presets } = await firstValueFrom(
-      this.http.get<{ presets: (IntervalTimerConfig & { updatedAt?: string })[] }>(`${this.apiUrl}/presets`, {
-        headers: this.headers(),
-      }),
+  /** The profile's folders and presets. */
+  async listLibrary(): Promise<IntervalTimerLibrary> {
+    type Stamped<T> = T & { updatedAt?: string };
+    const { folders, presets } = await firstValueFrom(
+      this.http.get<{ folders: Stamped<IntervalTimerFolder>[]; presets: Stamped<IntervalTimerConfig>[] }>(
+        `${this.apiUrl}/library`,
+        { headers: this.headers() },
+      ),
     );
-    return presets.map(({ updatedAt: _updatedAt, ...config }) => config);
+    return {
+      folders: folders.map(({ updatedAt: _updatedAt, ...folder }) => folder),
+      presets: presets.map(({ updatedAt: _updatedAt, ...config }) => config),
+    };
   }
 
   async putPreset(config: IntervalTimerConfig): Promise<void> {
     await firstValueFrom(this.http.put(`${this.apiUrl}/presets`, config, { headers: this.headers() }));
   }
 
-  async deletePreset(name: string): Promise<void> {
-    await firstValueFrom(
-      this.http.delete(`${this.apiUrl}/presets`, { headers: this.headers(), params: { name } }),
-    );
+  async deletePreset(id: string): Promise<void> {
+    await firstValueFrom(this.http.delete(`${this.apiUrl}/presets`, { headers: this.headers(), params: { id } }));
+  }
+
+  async putFolder(folder: IntervalTimerFolder): Promise<void> {
+    await firstValueFrom(this.http.put(`${this.apiUrl}/folders`, folder, { headers: this.headers() }));
+  }
+
+  /** Deletes the folder and, on the server, the presets in it. */
+  async deleteFolder(id: string): Promise<void> {
+    await firstValueFrom(this.http.delete(`${this.apiUrl}/folders`, { headers: this.headers(), params: { id } }));
   }
 
   private headers(key = this.keySignal()): HttpHeaders {

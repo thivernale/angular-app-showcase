@@ -17,7 +17,18 @@ export const LOCAL_OPEN_FOLDER_KEY = 'interval-timer-open-folder';
 export const CLOUD_KEY_KEY = 'interval-timer-cloud-key';
 /** Profile the access key belongs to. */
 export const CLOUD_PROFILE_KEY = 'interval-timer-cloud-profile';
-/** Device copy of a profile's presets, so they show instantly and work offline. */
-export const cloudCacheKey = (profile: string) => `interval-timer-cloud:${profile}`;
+/*
+ * Device copy of a profile's library, so it shows instantly and works offline. The "-v2" keys hold presets keyed by
+ * id; data under the keys of the version without folders is removed, not read.
+ */
+export const cloudPresetsKey = (profile: string) => `interval-timer-cloud-v2:${profile}`;
+export const cloudFoldersKey = (profile: string) => `interval-timer-cloud-v2-folders:${profile}`;
 /** Changes made while the API was unreachable, replayed in order. */
-export const cloudPendingKey = (profile: string) => `interval-timer-cloud-pending:${profile}`;
+export const cloudPendingKey = (profile: string) => `interval-timer-cloud-v2-pending:${profile}`;
+/** Folder last opened for a profile on this device. */
+export const cloudOpenFolderKey = (profile: string) => `interval-timer-open-folder:${profile}`;
+/** Keys of the version without folders, removed when found. */
+export const legacyCloudKeys = (profile: string) => [
+  `interval-timer-cloud:${profile}`,
+  `interval-timer-cloud-pending:${profile}`,
+];
