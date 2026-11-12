@@ -13,7 +13,10 @@ import {
 import { byName, newId, uniqueName, upgradePresets } from '../utils/library';
 import { CloudConnectionService } from './cloud-connection.service';
 import {
-  cloudCacheKey,
+  cloudFoldersKey,
+  cloudOpenFolderKey,
+  cloudPresetsKey,
+  legacyCloudKeys,
   cloudPendingKey,
   LOCAL_FOLDERS_KEY,
   LOCAL_OPEN_FOLDER_KEY,
@@ -30,10 +33,14 @@ import {
  */
 export type CloudStatus = 'local' | 'connecting' | 'syncing' | 'synced' | 'offline';
 
-type PendingOp = { id: string } & (
+/** A change to send to the API; queued in order, so a new folder reaches the server before presets saved into it. */
+type Change =
   | { type: 'put'; config: IntervalTimerConfig }
-  | { type: 'delete'; name: string }
-);
+  | { type: 'delete'; id: string }
+  | { type: 'putFolder'; folder: IntervalTimerFolder }
+  | { type: 'deleteFolder'; id: string };
+
+type PendingOp = { opId: string } & Change;
 
 /** localStorage keys of one storage (the anonymous one or a cloud profile's device copy). */
 interface StorageKeys {
@@ -92,7 +99,9 @@ export class IntervalTimerConfigService {
   private chain: Promise<unknown> = Promise.resolve();
 
   constructor() {
-    if (this.cloud.connected()) {
+    const profile = this.cloud.profile();
+    if (profile) {
+      removeLegacyKeys(profile);
       void this.sync();
     }
     const onOnline = () => void this.sync();
@@ -149,7 +158,7 @@ export class IntervalTimerConfigService {
       text: `Configuration "${removed.name}" removed.`
     });
 
-    this.queueChange({ type: 'delete', name: removed.name });
+    this.queueChange({ type: 'delete', id });
   }
 
   openFolder(id: string): void {
@@ -174,6 +183,7 @@ export class IntervalTimerConfigService {
       return undefined;
     }
     this.library.update(lib => ({ ...lib, folders }));
+    this.queueChange({ type: 'putFolder', folder });
     return folder;
   }
 
@@ -185,11 +195,13 @@ export class IntervalTimerConfigService {
     if (trimmed === null) {
       return false;
     }
-    const folders = this.library().folders.map(f => (f.id === id ? { ...f, name: trimmed } : f));
+    const folder = { id, name: trimmed };
+    const folders = this.library().folders.map(f => (f.id === id ? folder : f));
     if (!this.persistFolders(folders)) {
       return false;
     }
     this.library.update(lib => ({ ...lib, folders }));
+    this.queueChange({ type: 'putFolder', folder });
     return true;
   }
 
@@ -206,6 +218,8 @@ export class IntervalTimerConfigService {
     if (this.openFolderSignal() === id) {
       this.openFolder(DEFAULT_FOLDER_ID);
     }
+    // One request: the server deletes the folder's presets too, including ones saved from other devices.
+    this.queueChange({ type: 'deleteFolder', id });
   }
 
   /** Checks the key and, if accepted, switches this device to that key's cloud profile. */
@@ -229,6 +243,7 @@ export class IntervalTimerConfigService {
     }
 
     this.cloud.setConnection(trimmed, profile);
+    removeLegacyKeys(profile);
     this.localPresetCountSignal.set(this.readList(LOCAL_PRESETS_KEY).length);
     this.switchStorage();
     this.alertService.showAlert({ type: 'success', text: `Connected to cloud profile "${profile}".` });
@@ -247,7 +262,7 @@ export class IntervalTimerConfigService {
     this.alertService.showAlert({ type: 'info', text: 'Disconnected. Showing presets stored on this device.' });
   }
 
-  /** Sends queued changes, then reloads the profile's presets from the API. */
+  /** Sends queued changes, then reloads the profile's library from the API. */
   async sync(): Promise<void> {
     const profile = this.cloud.profile();
     if (!profile) {
@@ -257,41 +272,73 @@ export class IntervalTimerConfigService {
     try {
       const remote = await this.serialize(async () => {
         await this.flushPending(profile);
-        return this.cloud.listPresets();
+        return this.cloud.listLibrary();
       });
       if (this.cloud.profile() !== profile) {
         return;
       }
-      // Changes made while the list was loading are still queued; show them on top of the API's list.
-      const configs = applyPending(remote, this.readPending(profile));
-      this.library.update(lib => ({ ...lib, presets: configs }));
-      this.persistPresets(configs);
+      // Changes made while the library was loading are still queued; show them on top of the API's copy.
+      const library = applyPending(remote, this.readPending(profile));
+      this.library.set(library);
+      this.persistFolders(library.folders);
+      this.persistPresets(library.presets);
       this.statusSignal.set('synced');
     } catch (e) {
       this.handleFailure(e, profile, false);
     }
   }
 
-  /** Copies the anonymous presets into the connected profile; name clashes get a " (n)" suffix. */
+  /**
+   * Copies the anonymous presets into the connected profile with new ids. Their folders are matched to the
+   * profile's folders by name, or created; a name clash within the target folder gets a " (n)" suffix.
+   */
   async importLocalPresets(): Promise<void> {
     const profile = this.cloud.profile();
     if (!profile) {
       return;
     }
-    const local = this.readList(LOCAL_PRESETS_KEY);
-    const taken = this.configs().map(c => c.name);
-    const copies = local.map(config => {
-      const name = uniqueName(config.name, taken);
-      taken.push(name);
-      return { ...config, id: newId(), folderId: DEFAULT_FOLDER_ID, name };
+    const local = this.readLibrary({ presets: LOCAL_PRESETS_KEY, folders: LOCAL_FOLDERS_KEY, openFolder: '' });
+    const folders = [...this.library().folders];
+    const newFolders: IntervalTimerFolder[] = [];
+    const targetIds = new Map<string, string>([[DEFAULT_FOLDER_ID, DEFAULT_FOLDER_ID]]);
+    const targetFolder = (localId: string): string => {
+      let target = targetIds.get(localId);
+      if (target === undefined) {
+        const name = local.folders.find(f => f.id === localId)?.name;
+        const match = name === undefined ? undefined : folders.find(f => f.name.toLowerCase() === name.toLowerCase());
+        if (match) {
+          target = match.id;
+        } else if (name === undefined || folders.length >= MAX_FOLDERS) {
+          // A preset whose folder is missing, or one folder too many: it lands in the default folder.
+          target = DEFAULT_FOLDER_ID;
+        } else {
+          const folder = { id: newId(), name };
+          folders.push(folder);
+          newFolders.push(folder);
+          target = folder.id;
+        }
+        targetIds.set(localId, target);
+      }
+      return target;
+    };
+
+    const presets = [...this.configs()];
+    const copies = local.presets.map(config => {
+      const folderId = targetFolder(config.folderId);
+      const taken = presets.filter(c => c.folderId === folderId).map(c => c.name);
+      const copy = { ...config, id: newId(), folderId, name: uniqueName(config.name, taken) };
+      presets.push(copy);
+      return copy;
     });
 
-    const updated = [...this.configs(), ...copies];
-    if (!this.persistPresets(updated)) {
+    if (!this.persistFolders(folders) || !this.persistPresets(presets)) {
       return;
     }
-    this.library.update(lib => ({ ...lib, presets: updated }));
+    this.library.set({ folders, presets });
     this.localPresetCountSignal.set(0);
+    for (const folder of newFolders) {
+      this.enqueue(profile, { type: 'putFolder', folder });
+    }
     for (const config of copies) {
       this.enqueue(profile, { type: 'put', config });
     }
@@ -321,7 +368,7 @@ export class IntervalTimerConfigService {
     return trimmed;
   }
 
-  private queueChange(change: { type: 'put'; config: IntervalTimerConfig } | { type: 'delete'; name: string }): void {
+  private queueChange(change: Change): void {
     const profile = this.cloud.profile();
     if (!profile) {
       return;
@@ -342,27 +389,35 @@ export class IntervalTimerConfigService {
     }
   }
 
+  private send(change: Change): Promise<void> {
+    switch (change.type) {
+      case 'put':
+        return this.cloud.putPreset(change.config);
+      case 'delete':
+        return this.cloud.deletePreset(change.id);
+      case 'putFolder':
+        return this.cloud.putFolder(change.folder);
+      case 'deleteFolder':
+        return this.cloud.deleteFolder(change.id);
+    }
+  }
+
   /** Sends queued changes in order. Throws on the first change that may succeed on a later retry. */
   private async flushPending(profile: string): Promise<void> {
     for (let op = this.readPending(profile)[0]; op; op = this.readPending(profile)[0]) {
       try {
-        if (op.type === 'put') {
-          await this.cloud.putPreset(op.config);
-        } else {
-          await this.cloud.deletePreset(op.name);
-        }
+        await this.send(op);
       } catch (e) {
         if (!(e instanceof HttpErrorResponse) || !REJECTED_STATUSES.includes(e.status)) {
           throw e;
         }
-        const name = op.type === 'put' ? op.config.name : op.name;
         this.alertService.showAlert({
           type: 'danger',
-          text: `Cloud storage rejected the change to "${name}": ${e.error?.error ?? e.statusText}`,
+          text: `Cloud storage rejected the change to ${describeChange(op)}: ${e.error?.error ?? e.statusText}`,
         });
       }
-      const sentId = op.id;
-      this.writePending(profile, this.readPending(profile).filter(p => p.id !== sentId));
+      const sentId = op.opId;
+      this.writePending(profile, this.readPending(profile).filter(p => p.opId !== sentId));
     }
   }
 
@@ -391,7 +446,9 @@ export class IntervalTimerConfigService {
   /** Drops the key and the profile's device copy. Unsent changes stay queued for a later reconnect. */
   private leaveCloud(profile: string): void {
     this.cloud.clearConnection();
-    localStorage.removeItem(cloudCacheKey(profile));
+    localStorage.removeItem(cloudPresetsKey(profile));
+    localStorage.removeItem(cloudFoldersKey(profile));
+    removeLegacyKeys(profile);
     this.statusSignal.set('local');
     this.localPresetCountSignal.set(0);
     this.switchStorage();
@@ -410,18 +467,15 @@ export class IntervalTimerConfigService {
     return result;
   }
 
-  private enqueue(
-    profile: string,
-    change: { type: 'put'; config: IntervalTimerConfig } | { type: 'delete'; name: string },
-  ): void {
-    const op = { ...change, id: `${Date.now()}-${opCounter++}` } as PendingOp;
+  private enqueue(profile: string, change: Change): void {
+    const op: PendingOp = { ...change, opId: `${Date.now()}-${opCounter++}` };
     this.writePending(profile, [...this.readPending(profile), op]);
   }
 
   private keys(): StorageKeys {
     const profile = this.cloud.profile();
     return profile
-      ? { presets: cloudCacheKey(profile), folders: `${cloudCacheKey(profile)}:folders`, openFolder: `${LOCAL_OPEN_FOLDER_KEY}:${profile}` }
+      ? { presets: cloudPresetsKey(profile), folders: cloudFoldersKey(profile), openFolder: cloudOpenFolderKey(profile) }
       : { presets: LOCAL_PRESETS_KEY, folders: LOCAL_FOLDERS_KEY, openFolder: LOCAL_OPEN_FOLDER_KEY };
   }
 
@@ -490,15 +544,49 @@ function isStatus(e: unknown, status: number): boolean {
   return e instanceof HttpErrorResponse && e.status === status;
 }
 
-function applyPending(configs: IntervalTimerConfig[], ops: PendingOp[]): IntervalTimerConfig[] {
-  let result = configs;
+function removeLegacyKeys(profile: string): void {
+  for (const key of legacyCloudKeys(profile)) {
+    localStorage.removeItem(key);
+  }
+}
+
+function describeChange(change: Change): string {
+  switch (change.type) {
+    case 'put':
+      return `"${change.config.name}"`;
+    case 'putFolder':
+      return `folder "${change.folder.name}"`;
+    case 'delete':
+      return 'a deleted workout';
+    case 'deleteFolder':
+      return 'a deleted folder';
+  }
+}
+
+/** Replaces or adds by id. */
+function upsert<T extends { id: string }>(items: T[], item: T): T[] {
+  return items.some(i => i.id === item.id) ? items.map(i => (i.id === item.id ? item : i)) : [...items, item];
+}
+
+/** Shows queued changes on top of the API's copy of the library. */
+function applyPending(library: IntervalTimerLibrary, ops: PendingOp[]): IntervalTimerLibrary {
+  let { folders, presets } = library;
   for (const op of ops) {
-    if (op.type === 'put') {
-      const exists = result.some(c => c.id === op.config.id);
-      result = exists ? result.map(c => (c.id === op.config.id ? op.config : c)) : [...result, op.config];
-    } else {
-      result = result.filter(c => c.name !== op.name);
+    switch (op.type) {
+      case 'put':
+        presets = upsert(presets, op.config);
+        break;
+      case 'delete':
+        presets = presets.filter(c => c.id !== op.id);
+        break;
+      case 'putFolder':
+        folders = upsert(folders, op.folder);
+        break;
+      case 'deleteFolder':
+        folders = folders.filter(f => f.id !== op.id);
+        presets = presets.filter(c => c.folderId !== op.id);
+        break;
     }
   }
-  return result;
+  return { folders, presets };
 }
