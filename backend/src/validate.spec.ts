@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_DESCRIPTION_LENGTH, MAX_EXERCISES_LENGTH, MAX_NAME_LENGTH, MAX_VIDEO_URL_LENGTH, validatePreset } from './validate.js';
+import {
+  MAX_DESCRIPTION_LENGTH,
+  MAX_EXERCISES_LENGTH,
+  MAX_FOLDER_NAME_LENGTH,
+  MAX_NAME_LENGTH,
+  MAX_VIDEO_URL_LENGTH,
+  validateFolder,
+  validatePreset,
+} from './validate.js';
 
-const valid = { name: 'Tabata', rounds: 8, work: 20, rest: 10, playSound: true };
+const valid = { id: 'p1', folderId: 'default', name: 'Tabata', rounds: 8, work: 20, rest: 10, playSound: true };
 
 describe('validatePreset', () => {
   it('accepts a minimal preset', () => {
@@ -49,7 +57,30 @@ describe('validatePreset', () => {
     ['a long video URL', { ...valid, videoUrl: 'u'.repeat(MAX_VIDEO_URL_LENGTH + 1) }],
     ['a long description', { ...valid, description: 'd'.repeat(MAX_DESCRIPTION_LENGTH + 1) }],
     ['a non-string description', { ...valid, description: 42 }],
+    ['a missing id', { ...valid, id: undefined }],
+    ['an id with a slash', { ...valid, id: 'a/b' }],
+    ['a long id', { ...valid, id: 'a'.repeat(65) }],
+    ['a missing folderId', { ...valid, folderId: undefined }],
   ])('rejects %s', (_label, input) => {
     expect(validatePreset(input).ok).toBe(false);
+  });
+});
+
+describe('validateFolder', () => {
+  it('trims the name and drops unknown fields', () => {
+    expect(validateFolder({ id: 'f1', name: '  Kettlebell  ', extra: 1 })).toEqual({
+      ok: true,
+      folder: { id: 'f1', name: 'Kettlebell' },
+    });
+  });
+
+  it.each([
+    ['the default folder id', { id: 'default', name: 'X' }],
+    ['an empty name', { id: 'f1', name: '   ' }],
+    ['a long name', { id: 'f1', name: 'n'.repeat(MAX_FOLDER_NAME_LENGTH + 1) }],
+    ['a missing id', { name: 'X' }],
+    ['not an object', 'x'],
+  ])('rejects %s', (_label, input) => {
+    expect(validateFolder(input).ok).toBe(false);
   });
 });

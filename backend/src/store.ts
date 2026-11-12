@@ -1,7 +1,12 @@
 import { createHash } from 'node:crypto';
 
+/** Id of the built-in folder. It always exists and is never stored as a folder record. */
+export const DEFAULT_FOLDER_ID = 'default';
+
 /** A preset as stored for a profile. Mirrors the frontend `IntervalTimerConfig`. */
 export interface Preset {
+  id: string;
+  folderId: string;
   name: string;
   rounds: number;
   work: number;
@@ -14,6 +19,16 @@ export interface Preset {
 }
 
 export interface StoredPreset extends Preset {
+  updatedAt: string;
+}
+
+/** A user-defined folder. Mirrors the frontend `IntervalTimerFolder`. */
+export interface Folder {
+  id: string;
+  name: string;
+}
+
+export interface StoredFolder extends Folder {
   updatedAt: string;
 }
 
