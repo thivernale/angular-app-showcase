@@ -17,11 +17,19 @@ table. Without it the app keeps presets in the browser only (anonymous mode). De
 | Method | Path | Result |
 |---|---|---|
 | `GET` | `/me` | `{ profile, label }` for the key |
-| `GET` | `/presets` | `{ presets: [...] }` |
-| `PUT` | `/presets` | Creates or replaces the preset in the JSON body (matched by `name`) |
-| `DELETE` | `/presets?name=<name>` | Deletes a preset |
+| `GET` | `/library` | `{ folders: [...], presets: [...] }`, the whole profile in one read |
+| `PUT` | `/presets` | Creates or replaces the preset in the JSON body (matched by `id`); returns `{ preset }` |
+| `DELETE` | `/presets?id=<id>` | Deletes a preset |
+| `PUT` | `/folders` | Creates or renames the folder `{ id, name }` in the JSON body; returns `{ folder }` |
+| `DELETE` | `/folders?id=<id>` | Deletes a folder **and the presets in it** |
 
-Errors: `401` bad key, `400` invalid preset, `409` profile full, `413` body too large, `503` table busy (retry later).
+Presets and folders are identified by ids generated on the device: 1-64 characters from `A-Z`, `a-z`, `0-9` and `-`.
+Every preset carries a `folderId`, either `default` (the built-in folder, which is never stored and cannot be changed
+or deleted) or the id of one of the profile's folders. Folder design notes:
+[`docs/interval-timer-folders.md`](../docs/interval-timer-folders.md).
+
+Errors: `401` bad key, `400` invalid preset or folder (or a missing `id`, or deleting `default`), `404` preset saved
+into a folder that does not exist, `409` profile full, `413` body too large, `503` table busy (retry later).
 
 ## Deploy
 
@@ -80,6 +88,8 @@ In the app, paste the key into the cloud field of the interval timer once per de
 | Numbers (rounds, work, rest, intro) | 0 to 100,000 | |
 | Request body | 64 KB | Fits the longest preset even with 4-byte characters |
 | Presets per profile | 200 | Counted with a counter item, so the check is cheap |
+| Folders per profile | 50 | Not counting the default folder; counted like presets |
+| Folder name | 40 characters | Uniqueness within a profile is checked by the app, not the API |
 | Concurrent requests | 2 | Reserved concurrency caps the cost of a request flood |
 
 Capacity, for 100 presets with 8 KB exercise lists each (the large case):
