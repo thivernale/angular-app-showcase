@@ -278,7 +278,7 @@ export class IntervalTimerConfigService {
         return;
       }
       // Changes made while the library was loading are still queued; show them on top of the API's copy.
-      const library = applyPending(remote, this.readPending(profile));
+      const library = adoptOrphans(applyPending(remote, this.readPending(profile)));
       this.library.set(library);
       this.persistFolders(library.folders);
       this.persistPresets(library.presets);
@@ -485,7 +485,7 @@ export class IntervalTimerConfigService {
     if (changed) {
       this.writeStorage(keys.presets, JSON.stringify(presets));
     }
-    return { folders: readJsonArray<IntervalTimerFolder>(keys.folders), presets };
+    return adoptOrphans({ folders: readJsonArray<IntervalTimerFolder>(keys.folders), presets });
   }
 
   private persistPresets(presets: IntervalTimerConfig[]): boolean {
@@ -561,6 +561,21 @@ function describeChange(change: Change): string {
     case 'deleteFolder':
       return 'a deleted folder';
   }
+}
+
+/**
+ * Puts presets whose folder no longer exists (e.g. saved into a folder while another device deleted it) into the
+ * default folder, so they stay visible and can be deleted; saving one moves it there on the server too.
+ */
+function adoptOrphans(library: IntervalTimerLibrary): IntervalTimerLibrary {
+  const known = new Set([DEFAULT_FOLDER_ID, ...library.folders.map(f => f.id)]);
+  if (library.presets.every(c => known.has(c.folderId))) {
+    return library;
+  }
+  return {
+    ...library,
+    presets: library.presets.map(c => (known.has(c.folderId) ? c : { ...c, folderId: DEFAULT_FOLDER_ID })),
+  };
 }
 
 /** Replaces or adds by id. */

@@ -273,6 +273,20 @@ describe('IntervalTimerConfigService (cloud mode)', () => {
     expect(service.openFolderId()).toBe('default');
   });
 
+  it('shows a workout left in a folder deleted elsewhere in the default folder, so it can be deleted', async () => {
+    const service = createService();
+    await connect(service, { presets: [{ ...tabata, folderId: 'gone' }] });
+
+    expect(service.openFolderConfigs().map(c => c.id)).toEqual(['tabata']);
+
+    service.remove('tabata');
+    const del = await expectRequest('DELETE', '/presets');
+    expect(del.request.params.get('id')).toBe('tabata');
+    del.flush(null, { status: 204, statusText: 'No Content' });
+    await vi.waitFor(() => expect(service.cloudStatus()).toBe('synced'));
+    expect(service.configs()).toEqual([]);
+  });
+
   it('drops a change the API rejects instead of retrying it forever', async () => {
     const service = createService();
     await connect(service);

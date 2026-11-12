@@ -87,6 +87,15 @@ describe('IntervalTimerConfigService', () => {
     });
   });
 
+  it('shows a workout whose folder no longer exists in the default folder', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([preset('a', 'Orphan', 'gone')]));
+
+    const fresh = freshService();
+
+    expect(fresh.configs()[0].folderId).toBe('default');
+    expect(fresh.openFolderConfigs().map(c => c.id)).toEqual(['a']);
+  });
+
   describe('save()', () => {
     it('adds a new config and persists it', () => {
       service.save(sampleConfig);
