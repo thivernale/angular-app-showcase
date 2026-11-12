@@ -249,8 +249,8 @@ const DEFAULT_SETTINGS: Readonly<{
             >
               <select
                 class="form-select form-select-sm w-auto"
-                [ngModel]="selectedConfigName()"
-                (ngModelChange)="selectedConfigName.set($event)"
+                [ngModel]="selectedConfigId()"
+                (ngModelChange)="selectedConfigId.set($event)"
                 id="savedConfigs"
                 aria-label="Saved configurations"
               >
@@ -262,14 +262,14 @@ const DEFAULT_SETTINGS: Readonly<{
               <button
                 class="btn btn-sm btn-outline-secondary"
                 (click)="loadSelectedConfig()"
-                [disabled]="!selectedConfigName()"
+                [disabled]="!selectedConfigId()"
               >
                 Load
               </button>
               <button
                 class="btn btn-sm btn-outline-secondary"
                 (click)="deleteSelectedConfig()"
-                [disabled]="!selectedConfigName()"
+                [disabled]="!selectedConfigId()"
               >
                 Delete
               </button>
@@ -277,7 +277,7 @@ const DEFAULT_SETTINGS: Readonly<{
                 class="btn btn-sm btn-outline-secondary"
                 id="copy-config-link"
                 (click)="copyConfigLink()"
-                [disabled]="!selectedConfigName()"
+                [disabled]="!selectedConfigId()"
               >
                 Copy Link
               </button>
@@ -291,9 +291,14 @@ const DEFAULT_SETTINGS: Readonly<{
                 id="newConfigName"
                 aria-label="Config name"
               />
-              <button class="btn btn-sm btn-outline-secondary" (click)="saveCurrentConfig()">
+              <button class="btn btn-sm btn-outline-secondary" id="save-config" (click)="saveCurrentConfig()">
                 Save
               </button>
+              @if (loadedConfig()) {
+                <button class="btn btn-sm btn-outline-secondary" id="save-config-as-new" (click)="saveAsNewConfig()">
+                  Save as new
+                </button>
+              }
             </div>
             <app-cloud-sync />
           </div>
@@ -450,7 +455,7 @@ export class IntervalTimerComponent {
   private readonly configService = inject(IntervalTimerConfigService);
   /** The open folder's workouts, by name. */
   protected readonly savedConfigs = this.configService.openFolderConfigs;
-  protected selectedConfigName = signal('');
+  protected selectedConfigId = signal('');
   protected newConfigName = signal('');
 
   protected readonly defaultFolderId = DEFAULT_FOLDER_ID;
@@ -503,36 +508,60 @@ export class IntervalTimerComponent {
   }
 
   protected confirmFolderDelete(): void {
-    this.configService.removeFolder(this.openFolderId());
-    this.selectedConfigName.set('');
+    const id = this.openFolderId();
+    if (this.loadedConfig()?.folderId === id) {
+      this.unload();
+    }
+    this.configService.removeFolder(id);
+    this.selectedConfigId.set('');
     this.folderMode.set('read');
   }
 
-  /** Opens another folder; the selected workout belongs to the old one. */
+  /**
+   * Opens another folder. The loaded workout is unloaded (the form keeps its values), but its name stays the default
+   * name for Save, so Load → switch folder → Save copies it under the same name.
+   */
   protected switchFolder(id: string): void {
+    const loaded = this.loadedConfig();
+    if (loaded) {
+      this.loadedId.set(null);
+      this.rememberedName.set(loaded.name);
+    }
     this.configService.openFolder(id);
-    this.selectedConfigName.set('');
+    this.selectedConfigId.set('');
   }
 
-  /** The running workout's name when it is a saved configuration, otherwise the page title. */
+  /** The workout Load was last clicked for; decides whether Save updates it or creates a new one. */
+  protected readonly loadedId = signal<string | null>(null);
+  /** Default name for Save after a folder switch unloaded a workout. */
+  protected readonly rememberedName = signal('');
+  /** The loaded workout, while it still exists. */
+  protected readonly loadedConfig = computed(() => {
+    const id = this.loadedId();
+    return id === null ? undefined : this.configService.load(id);
+  });
+
+  /** The running workout's name when it is a loaded saved workout, otherwise the page title. */
   protected readonly title = computed(() => {
-    const name = this.selectedConfigName();
-    const isSavedWorkout = this.savedConfigs().some((c) => c.name === name);
-    return this.sessionActive() && isSavedWorkout ? name : 'Interval Timer';
+    const loaded = this.loadedConfig();
+    return this.sessionActive() && loaded ? loaded.name : 'Interval Timer';
   });
 
   private readonly route = inject(ActivatedRoute);
 
   constructor() {
-    const configName = this.route.snapshot.queryParamMap.get('config');
-    if (configName) {
-      this.selectedConfigName.set(configName);
+    // ?config=<id>; links copied before workouts had ids carry the name, which works while it is unique.
+    const param = this.route.snapshot.queryParamMap.get('config');
+    const config = param ? (this.configService.load(param) ?? this.configService.findUniqueByName(param)) : undefined;
+    if (config) {
+      this.configService.openFolder(config.folderId);
+      this.selectedConfigId.set(config.id);
       this.loadSelectedConfig();
     }
   }
 
   protected loadSelectedConfig(): void {
-    const config = this.configService.load(this.selectedConfigName());
+    const config = this.configService.load(this.selectedConfigId());
     if (!config) {
       return;
     }
@@ -544,16 +573,33 @@ export class IntervalTimerComponent {
     this.videoUrl.set(config.videoUrl ?? '');
     this.description.set(config.description ?? '');
     this.intro.set(config.intro ?? 0);
+    this.loadedId.set(config.id);
+    this.rememberedName.set('');
   }
 
+  /** Updates the loaded workout (renaming it if a name is typed), or creates one in the open folder. */
   protected saveCurrentConfig(): void {
     const typedName = this.newConfigName().trim();
-    const existingSelection = this.selectedConfigName();
-    const name = typedName || existingSelection || this.generateDefaultName();
+    const loaded = this.loadedConfig();
+    if (loaded) {
+      this.store(loaded.id, loaded.folderId, typedName || loaded.name);
+    } else {
+      this.store(newId(), this.openFolderId(), typedName || this.rememberedName() || this.generateDefaultName());
+    }
+  }
 
-    this.configService.save({
-      id: newId(),
-      folderId: DEFAULT_FOLDER_ID,
+  /** Copies the loaded workout's settings into a new workout in the same folder. */
+  protected saveAsNewConfig(): void {
+    const loaded = this.loadedConfig();
+    if (loaded) {
+      this.store(newId(), loaded.folderId, this.newConfigName().trim() || loaded.name);
+    }
+  }
+
+  private store(id: string, folderId: string, name: string): void {
+    const saved = this.configService.save({
+      id,
+      folderId,
       name,
       rounds: this.rounds(),
       work: this.work(),
@@ -564,25 +610,36 @@ export class IntervalTimerComponent {
       description: this.description(),
       intro: this.intro(),
     });
-    this.newConfigName.set('');
-
-    if (typedName || existingSelection) {
-      this.selectedConfigName.set(name);
+    if (!saved) {
+      return;
     }
+    this.newConfigName.set('');
+    this.loadedId.set(saved.id);
+    this.selectedConfigId.set(saved.id);
+    this.rememberedName.set('');
   }
 
   protected deleteSelectedConfig(): void {
-    if (!this.selectedConfigName()) {
+    const id = this.selectedConfigId();
+    if (!id) {
       return;
     }
-    this.configService.remove(this.selectedConfigName());
-    this.selectedConfigName.set('');
+    if (id === this.loadedId()) {
+      this.unload();
+    }
+    this.configService.remove(id);
+    this.selectedConfigId.set('');
+  }
+
+  private unload(): void {
+    this.loadedId.set(null);
+    this.rememberedName.set('');
   }
 
   private readonly alertService = inject(AlertService);
 
   protected async copyConfigLink(): Promise<void> {
-    const url = `${location.origin}${location.pathname}?config=${encodeURIComponent(this.selectedConfigName())}`;
+    const url = `${location.origin}${location.pathname}?config=${encodeURIComponent(this.selectedConfigId())}`;
     await navigator.clipboard.writeText(url);
     this.alertService.showAlert({ type: 'success', text: 'Link copied!' });
   }
@@ -604,7 +661,8 @@ export class IntervalTimerComponent {
     this.description.set(DEFAULT_SETTINGS.description);
     this.intro.set(DEFAULT_SETTINGS.intro);
     this.newConfigName.set('');
-    this.selectedConfigName.set('');
+    this.selectedConfigId.set('');
+    this.unload();
   }
 
   protected toggleTimerStarted() {
