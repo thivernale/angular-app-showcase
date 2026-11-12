@@ -177,7 +177,75 @@ const DEFAULT_SETTINGS: Readonly<{
             </div>
 
             <div
-              class="d-flex flex-column flex-wrap flex-lg-row gap-2 align-items-center justify-content-start w-100 pt-3 border-top small text-body-secondary"
+              id="folder-control"
+              class="d-flex flex-wrap gap-2 align-items-center justify-content-start w-100 pt-3 border-top small text-body-secondary"
+            >
+              @switch (folderMode()) {
+                @case ('read') {
+                  <span id="folder-name" class="fw-semibold">📁 {{ openFolderName() }}</span>
+                }
+                @case ('select') {
+                  <select
+                    class="form-select form-select-sm w-auto"
+                    id="folder-select"
+                    aria-label="Folder"
+                    (change)="onFolderChoice($any($event.target).value)"
+                  >
+                    @for (f of folders(); track f.id) {
+                      <option [value]="f.id" [selected]="f.id === openFolderId()">{{ f.name }}</option>
+                    }
+                    <option value="__new">+ New folder…</option>
+                    @if (openFolderId() !== defaultFolderId) {
+                      <option value="__rename">Rename "{{ openFolderName() }}"…</option>
+                      <option value="__delete">Delete "{{ openFolderName() }}"…</option>
+                    }
+                  </select>
+                }
+                @case ('delete') {
+                  <span id="folder-delete-message">{{ folderDeleteMessage() }}</span>
+                  <button class="btn btn-sm btn-outline-danger" id="folder-delete-confirm" (click)="confirmFolderDelete()">
+                    Delete
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary" id="folder-cancel" (click)="folderMode.set('read')">
+                    Cancel
+                  </button>
+                }
+                @default {
+                  <input
+                    type="text"
+                    class="form-control form-control-sm w-auto"
+                    id="folder-name-input"
+                    aria-label="Folder name"
+                    placeholder="Folder name"
+                    [attr.maxlength]="limits.folderName"
+                    [value]="folderNameDraft()"
+                    (input)="folderNameDraft.set($any($event.target).value)"
+                    (keydown.enter)="confirmFolderName()"
+                  />
+                  <button class="btn btn-sm btn-outline-primary" id="folder-ok" (click)="confirmFolderName()">OK</button>
+                  <button class="btn btn-sm btn-outline-secondary" id="folder-cancel" (click)="folderMode.set('read')">
+                    Cancel
+                  </button>
+                }
+              }
+              @if (folderMode() === 'read' || folderMode() === 'select') {
+                <button
+                  class="btn btn-sm btn-link p-0 text-decoration-none"
+                  id="folder-edit-toggle"
+                  aria-label="Edit folders"
+                  [attr.aria-pressed]="folderMode() === 'select'"
+                  (click)="toggleFolderEdit()"
+                >
+                  ✎
+                </button>
+              }
+              @if (openFolderCount() === 0) {
+                <span id="folder-empty-hint" class="fst-italic">No workouts in this folder yet</span>
+              }
+            </div>
+
+            <div
+              class="d-flex flex-column flex-wrap flex-lg-row gap-2 align-items-center justify-content-start w-100 small text-body-secondary"
             >
               <select
                 class="form-select form-select-sm w-auto"
@@ -187,8 +255,8 @@ const DEFAULT_SETTINGS: Readonly<{
                 aria-label="Saved configurations"
               >
                 <option value="" disabled>Saved configs…</option>
-                @for (c of savedConfigs(); track c.name) {
-                  <option [value]="c.name">{{ c.name }}</option>
+                @for (c of savedConfigs(); track c.id) {
+                  <option [value]="c.id">{{ c.name }}</option>
                 }
               </select>
               <button
@@ -380,9 +448,71 @@ export class IntervalTimerComponent {
 
   protected readonly limits = PRESET_LIMITS;
   private readonly configService = inject(IntervalTimerConfigService);
-  protected readonly savedConfigs = this.configService.configs;
+  /** The open folder's workouts, by name. */
+  protected readonly savedConfigs = this.configService.openFolderConfigs;
   protected selectedConfigName = signal('');
   protected newConfigName = signal('');
+
+  protected readonly defaultFolderId = DEFAULT_FOLDER_ID;
+  protected readonly folders = this.configService.folders;
+  protected readonly openFolderId = this.configService.openFolderId;
+  /** `read`: the open folder as text; `select`: the folder dropdown; the others replace it with an inline prompt. */
+  protected readonly folderMode = signal<'read' | 'select' | 'new' | 'rename' | 'delete'>('read');
+  protected readonly folderNameDraft = signal('');
+  protected readonly openFolderName = computed(
+    () => this.folders().find((f) => f.id === this.openFolderId())?.name ?? '',
+  );
+  protected readonly openFolderCount = computed(() => this.savedConfigs().length);
+  protected readonly folderDeleteMessage = computed(() => {
+    const n = this.openFolderCount();
+    const workouts = n === 0 ? '' : ` and its ${n} workout${n === 1 ? '' : 's'}`;
+    return `Delete folder ${this.openFolderName()}${workouts}?`;
+  });
+
+  protected toggleFolderEdit(): void {
+    this.folderMode.update((mode) => (mode === 'read' ? 'select' : 'read'));
+  }
+
+  protected onFolderChoice(value: string): void {
+    if (value === '__new') {
+      this.folderNameDraft.set('');
+      this.folderMode.set('new');
+    } else if (value === '__rename') {
+      this.folderNameDraft.set(this.openFolderName());
+      this.folderMode.set('rename');
+    } else if (value === '__delete') {
+      this.folderMode.set('delete');
+    } else {
+      this.switchFolder(value);
+      this.folderMode.set('read');
+    }
+  }
+
+  /** OK in the inline name field; the field stays open when the name is refused. */
+  protected confirmFolderName(): void {
+    if (this.folderMode() === 'new') {
+      const folder = this.configService.createFolder(this.folderNameDraft());
+      if (!folder) {
+        return;
+      }
+      this.switchFolder(folder.id);
+    } else if (!this.configService.renameFolder(this.openFolderId(), this.folderNameDraft())) {
+      return;
+    }
+    this.folderMode.set('read');
+  }
+
+  protected confirmFolderDelete(): void {
+    this.configService.removeFolder(this.openFolderId());
+    this.selectedConfigName.set('');
+    this.folderMode.set('read');
+  }
+
+  /** Opens another folder; the selected workout belongs to the old one. */
+  protected switchFolder(id: string): void {
+    this.configService.openFolder(id);
+    this.selectedConfigName.set('');
+  }
 
   /** The running workout's name when it is a saved configuration, otherwise the page title. */
   protected readonly title = computed(() => {

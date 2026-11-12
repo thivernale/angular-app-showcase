@@ -602,6 +602,7 @@ describe('IntervalTimerComponent', () => {
       '#rest',
       '#intro',
       '#total-duration',
+      '#folder-name',
       '#savedConfigs',
       '#newConfigName',
       '#copy-config-link',
@@ -798,6 +799,175 @@ describe('IntervalTimerComponent', () => {
 
       const resetButton = fixture.debugElement.query(By.css('#reset-settings')).nativeElement;
       expect(resetButton.disabled).toBe(false);
+    });
+  });
+
+  describe('folders', () => {
+    let configService: IntervalTimerConfigService;
+
+    beforeEach(() => {
+      configService = TestBed.inject(IntervalTimerConfigService);
+    });
+
+    const el = <T extends HTMLElement = HTMLElement>(selector: string): T | null =>
+      fixture.debugElement.query(By.css(selector))?.nativeElement ?? null;
+
+    function click(selector: string) {
+      el(selector)!.click();
+      fixture.detectChanges();
+    }
+
+    function choose(value: string) {
+      const select = el<HTMLSelectElement>('#folder-select')!;
+      select.value = value;
+      select.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    }
+
+    function type(selector: string, value: string) {
+      const input = el<HTMLInputElement>(selector)!;
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+    }
+
+    const folderName = () => el('#folder-name')?.textContent?.trim();
+    const optionValues = (selector: string) =>
+      Array.from(el<HTMLSelectElement>(selector)!.options).map(o => o.value);
+    const workoutNames = () =>
+      Array.from(el<HTMLSelectElement>('#savedConfigs')!.options)
+        .filter(o => o.value)
+        .map(o => o.textContent?.trim());
+
+    function preset(id: string, name: string, folderId = 'default') {
+      return { id, folderId, name, rounds: 1, work: 10, rest: 0, playSound: true };
+    }
+
+    function kettlebellWithTwoWorkouts(): string {
+      const folder = configService.createFolder('Kettlebell')!;
+      configService.save(preset('s', 'Swing', folder.id));
+      configService.save(preset('g', 'Goblet', folder.id));
+      configService.save(preset('t', 'Tabata'));
+      fixture.detectChanges();
+      return folder.id;
+    }
+
+    it('shows the open folder as text, with the dropdown behind the edit toggle', () => {
+      expect(folderName()).toBe('📁 My workouts');
+      expect(el('#folder-select')).toBeNull();
+
+      click('#folder-edit-toggle');
+      expect(el('#folder-select')).not.toBeNull();
+
+      click('#folder-edit-toggle');
+      expect(el('#folder-select')).toBeNull();
+      expect(folderName()).toBe('📁 My workouts');
+    });
+
+    it('opens the chosen folder and lists only its workouts', () => {
+      const id = kettlebellWithTwoWorkouts();
+      expect(workoutNames()).toEqual(['Tabata']);
+
+      click('#folder-edit-toggle');
+      choose(id);
+
+      expect(el('#folder-select')).toBeNull();
+      expect(folderName()).toBe('📁 Kettlebell');
+      expect(workoutNames()).toEqual(['Goblet', 'Swing']);
+    });
+
+    it('creates a folder inline and opens it', () => {
+      click('#folder-edit-toggle');
+      choose('__new');
+      type('#folder-name-input', 'Kettlebell');
+      click('#folder-ok');
+
+      expect(folderName()).toBe('📁 Kettlebell');
+      expect(el('#folder-name-input')).toBeNull();
+      expect(el('#folder-empty-hint')?.textContent?.trim()).toBe('No workouts in this folder yet');
+      expect(configService.folders().map(f => f.name)).toEqual(['My workouts', 'Kettlebell']);
+    });
+
+    it('cancels creating a folder', () => {
+      click('#folder-edit-toggle');
+      choose('__new');
+      type('#folder-name-input', 'Kettlebell');
+      click('#folder-cancel');
+
+      expect(folderName()).toBe('📁 My workouts');
+      expect(configService.folders()).toHaveLength(1);
+    });
+
+    it('keeps the name field open when the folder name is refused', () => {
+      click('#folder-edit-toggle');
+      choose('__new');
+      type('#folder-name-input', 'my workouts');
+      click('#folder-ok');
+
+      expect(el('#folder-name-input')).not.toBeNull();
+      expect(configService.folders()).toHaveLength(1);
+    });
+
+    it('renames the open folder, starting from its name', () => {
+      const id = kettlebellWithTwoWorkouts();
+      configService.openFolder(id);
+      fixture.detectChanges();
+
+      click('#folder-edit-toggle');
+      choose('__rename');
+      expect(el<HTMLInputElement>('#folder-name-input')!.value).toBe('Kettlebell');
+      type('#folder-name-input', 'KB');
+      click('#folder-ok');
+
+      expect(folderName()).toBe('📁 KB');
+    });
+
+    it('asks before deleting a folder and its workouts', () => {
+      const id = kettlebellWithTwoWorkouts();
+      configService.openFolder(id);
+      fixture.detectChanges();
+
+      click('#folder-edit-toggle');
+      choose('__delete');
+      expect(el('#folder-delete-message')?.textContent?.trim()).toBe('Delete folder Kettlebell and its 2 workouts?');
+      click('#folder-delete-confirm');
+
+      expect(folderName()).toBe('📁 My workouts');
+      expect(configService.configs().map(c => c.name)).toEqual(['Tabata']);
+    });
+
+    it('words the delete question for one and for no workouts', () => {
+      const folder = configService.createFolder('Kettlebell')!;
+      configService.openFolder(folder.id);
+      fixture.detectChanges();
+      click('#folder-edit-toggle');
+      choose('__delete');
+      expect(el('#folder-delete-message')?.textContent?.trim()).toBe('Delete folder Kettlebell?');
+      click('#folder-cancel');
+
+      configService.save(preset('s', 'Swing', folder.id));
+      fixture.detectChanges();
+      click('#folder-edit-toggle');
+      choose('__delete');
+      expect(el('#folder-delete-message')?.textContent?.trim()).toBe('Delete folder Kettlebell and its 1 workout?');
+    });
+
+    it('offers no rename or delete for the default folder', () => {
+      const id = kettlebellWithTwoWorkouts();
+
+      click('#folder-edit-toggle');
+      expect(optionValues('#folder-select')).toEqual(['default', id, '__new']);
+
+      choose(id);
+      click('#folder-edit-toggle');
+      expect(optionValues('#folder-select')).toEqual(['default', id, '__new', '__rename', '__delete']);
+    });
+
+    it('lists workouts by id in the dropdown', () => {
+      configService.save(preset('t', 'Tabata'));
+      fixture.detectChanges();
+
+      expect(optionValues('#savedConfigs')).toEqual(['', 't']);
     });
   });
 
