@@ -15,9 +15,10 @@ import { ActivatedRoute } from '@angular/router';
 import { AlertService } from '../components/alert/services/alert.service';
 import { CloudSyncComponent } from './cloud-sync.component';
 import { IntervalTimerConfigService } from './services/interval-timer-config.service';
-import { PRESET_LIMITS } from './types/interval-timer-config.interface';
+import { DEFAULT_FOLDER_ID, PRESET_LIMITS } from './types/interval-timer-config.interface';
 import { YouTubePlayerService } from './services/youtube-player.service';
 import { playBeep } from './utils/beep';
+import { newId } from './utils/library';
 import { extractYouTubeVideoId } from './utils/youtube';
 import { YouTubePlayerHandle } from './utils/youtube-player';
 
@@ -421,6 +422,8 @@ export class IntervalTimerComponent {
     const name = typedName || existingSelection || this.generateDefaultName();
 
     this.configService.save({
+      id: newId(),
+      folderId: DEFAULT_FOLDER_ID,
       name,
       rounds: this.rounds(),
       work: this.work(),
