@@ -116,7 +116,7 @@ const DEFAULT_SETTINGS: Readonly<{
                   class="form-control"
                   [ngModel]="rounds()"
                   (ngModelChange)="rounds.set($event)"
-                  [max]="60"
+                  [max]="120"
                   [min]="1"
                   [step]="1"
                   placeholder="Rounds"
@@ -244,62 +244,65 @@ const DEFAULT_SETTINGS: Readonly<{
               }
             </div>
 
-            <div
-              class="d-flex flex-column flex-wrap flex-lg-row gap-2 align-items-center justify-content-start w-100 small text-body-secondary"
-            >
-              <select
-                class="form-select form-select-sm w-auto"
-                [ngModel]="selectedConfigId()"
-                (ngModelChange)="selectedConfigId.set($event)"
-                id="savedConfigs"
-                aria-label="Saved configurations"
+            <!-- Hidden while a folder is being chosen, named or deleted, so nothing is saved into the previous folder by mistake. -->
+            @if (folderMode() === 'read') {
+              <div
+                class="d-flex flex-column flex-wrap flex-lg-row gap-2 align-items-center justify-content-start w-100 small text-body-secondary"
               >
-                <option value="" disabled>Saved configs…</option>
-                @for (c of savedConfigs(); track c.id) {
-                  <option [value]="c.id">{{ c.name }}</option>
-                }
-              </select>
-              <button
-                class="btn btn-sm btn-outline-secondary"
-                (click)="loadSelectedConfig()"
-                [disabled]="!selectedConfigId()"
-              >
-                Load
-              </button>
-              <button
-                class="btn btn-sm btn-outline-secondary"
-                (click)="deleteSelectedConfig()"
-                [disabled]="!selectedConfigId()"
-              >
-                Delete
-              </button>
-              <button
-                class="btn btn-sm btn-outline-secondary"
-                id="copy-config-link"
-                (click)="copyConfigLink()"
-                [disabled]="!selectedConfigId()"
-              >
-                Copy Link
-              </button>
-              <input
-                type="text"
-                class="form-control form-control-sm w-auto"
-                [ngModel]="newConfigName()"
-                (ngModelChange)="newConfigName.set($event)"
-                placeholder="Config name"
-                [maxlength]="limits.name"
-                id="newConfigName"
-                aria-label="Config name"
-              />
-              <button class="btn btn-sm btn-outline-secondary" id="save-config" (click)="saveCurrentConfig()">
-                Save
-              </button>
-              @if (loadedConfig()) {
-                <button class="btn btn-sm btn-outline-secondary" id="save-config-as-new" (click)="saveAsNewConfig()">
-                  Save as new
+                <select
+                  class="form-select form-select-sm w-auto"
+                  [ngModel]="selectedConfigId()"
+                  (ngModelChange)="selectedConfigId.set($event)"
+                  id="savedConfigs"
+                  aria-label="Saved configurations"
+                >
+                  <option value="" disabled>Saved configs…</option>
+                  @for (c of savedConfigs(); track c.id) {
+                    <option [value]="c.id">{{ c.name }}</option>
+                  }
+                </select>
+                <button
+                  class="btn btn-sm btn-outline-secondary"
+                  (click)="loadSelectedConfig()"
+                  [disabled]="!selectedConfigId()"
+                >
+                  Load
                 </button>
-              }
-            </div>
+                <button
+                  class="btn btn-sm btn-outline-secondary"
+                  (click)="deleteSelectedConfig()"
+                  [disabled]="!selectedConfigId()"
+                >
+                  Delete
+                </button>
+                <button
+                  class="btn btn-sm btn-outline-secondary"
+                  id="copy-config-link"
+                  (click)="copyConfigLink()"
+                  [disabled]="!selectedConfigId()"
+                >
+                  Copy Link
+                </button>
+                <input
+                  type="text"
+                  class="form-control form-control-sm w-auto"
+                  [ngModel]="newConfigName()"
+                  (ngModelChange)="newConfigName.set($event)"
+                  placeholder="Config name"
+                  [maxlength]="limits.name"
+                  id="newConfigName"
+                  aria-label="Config name"
+                />
+                <button class="btn btn-sm btn-outline-secondary" id="save-config" (click)="saveCurrentConfig()">
+                  Save
+                </button>
+                @if (loadedConfig()) {
+                  <button class="btn btn-sm btn-outline-secondary" id="save-config-as-new" (click)="saveAsNewConfig()">
+                    Save as new
+                  </button>
+                }
+              </div>
+            }
             <app-cloud-sync />
           </div>
 

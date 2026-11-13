@@ -17,6 +17,8 @@ export const LOCAL_OPEN_FOLDER_KEY = 'interval-timer-open-folder';
 export const CLOUD_KEY_KEY = 'interval-timer-cloud-key';
 /** Profile the access key belongs to. */
 export const CLOUD_PROFILE_KEY = 'interval-timer-cloud-profile';
+/** Label of the access key (usually the device it was made for), as stored with the key on the server. */
+export const CLOUD_LABEL_KEY = 'interval-timer-cloud-label';
 /*
  * Device copy of a profile's library, so it shows instantly and works offline. The "-v2" keys hold presets keyed by
  * id; data under the keys of the version without folders is removed, not read.

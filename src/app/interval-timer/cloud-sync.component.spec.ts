@@ -7,6 +7,7 @@ import { CloudStatus, IntervalTimerConfigService } from './services/interval-tim
 class FakeConfigService {
   cloudEnabled = true;
   profile = signal<string | null>(null);
+  keyLabel = signal<string | null>(null);
   cloudStatus = signal<CloudStatus>('local');
   localPresetCount = signal(0);
   connect = vi.fn().mockResolvedValue(true);
@@ -102,15 +103,22 @@ describe('CloudSyncComponent', () => {
     beforeEach(() =>
       create(s => {
         s.profile.set('me');
+        s.keyLabel.set('laptop');
         s.cloudStatus.set('synced');
         s.localPresetCount.set(2);
       }),
     );
 
-    it('shows the profile and sync status', () => {
-      expect(query('#cloud-profile')?.textContent).toContain('Cloud: me');
+    it('shows the profile with the key label, and the sync status', () => {
+      expect(query('#cloud-profile')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Cloud: me (laptop)');
       expect(query('#cloud-status')?.textContent).toContain('Up to date');
       expect(query('#cloud-key')).toBeNull();
+    });
+
+    it('shows the profile alone while the key label is not known', () => {
+      service.keyLabel.set(null);
+      fixture.detectChanges();
+      expect(query('#cloud-profile')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Cloud: me');
     });
 
     it('offers to copy the anonymous presets', () => {

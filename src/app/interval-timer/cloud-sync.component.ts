@@ -18,7 +18,12 @@ const STATUS_LABELS = {
     @if (configService.cloudEnabled) {
       <div class="d-flex flex-wrap gap-2 align-items-center w-100 pt-2 small text-body-secondary" id="cloud-sync">
         @if (configService.profile(); as profile) {
-          <span id="cloud-profile"><i class="fa-solid fa-cloud me-1" aria-hidden="true"></i>Cloud: {{ profile }}</span>
+          <span id="cloud-profile"
+            ><i class="fa-solid fa-cloud me-1" aria-hidden="true"></i>Cloud: {{ profile }}
+            @if (configService.keyLabel(); as label) {
+              ({{ label }})
+            }
+          </span>
           <span id="cloud-status">{{ statusLabel() }}</span>
           @if (configService.localPresetCount() > 0) {
             <button type="button" class="btn btn-sm btn-outline-secondary" id="cloud-import" (click)="importLocal()">

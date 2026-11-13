@@ -84,8 +84,9 @@ Operating instructions, API reference and limits: [`backend/README.md`](../backe
   - Copying anonymous presets into a profile keeps their folders (matched by name, or created) and gives them new
     ids; a name clash within the target folder is renamed to `"<name> (2)"`, `"<name> (3)"`, …
   - When browser storage is full, a change is refused with a message rather than shown but not saved.
-- `cloud-sync.component.ts`: "Local only" with a key field and Connect, or "Cloud: <profile>" with status, Sync,
-  Disconnect and "Copy N local presets". No browser dialogs.
+- `cloud-sync.component.ts`: "Local only" with a key field and Connect, or "Cloud: <profile> (<key label>)" with
+  status, Sync, Disconnect and "Copy N local presets". No browser dialogs. The key label comes from `GET /me` and is
+  kept on the device (`interval-timer-cloud-label`); a device connected before that fetches it on its next sync.
 - Input fields carry `maxlength` matching the API limits.
 
 ## Possible follow-ups

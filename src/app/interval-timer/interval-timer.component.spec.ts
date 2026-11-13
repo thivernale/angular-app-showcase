@@ -765,6 +765,11 @@ describe('IntervalTimerComponent', () => {
     });
   });
 
+  it('allows up to 120 rounds', () => {
+    const rounds = fixture.nativeElement.querySelector('#rounds') as HTMLInputElement;
+    expect(rounds.max).toBe('120');
+  });
+
   describe('reset', () => {
     it('restores all settings to their default values', () => {
       component.rounds.set(3);
@@ -1030,6 +1035,22 @@ describe('IntervalTimerComponent', () => {
         expect(selected()).toBe('g');
         expect(loaded()).toBe('g');
       });
+    });
+
+    it('hides the workout controls until the folder control is back in read mode', () => {
+      const workoutControls = () => [el('#savedConfigs'), el('#newConfigName'), el('#save-config')];
+      expect(workoutControls().every(e => e !== null)).toBe(true);
+
+      click('#folder-edit-toggle');
+      expect(workoutControls()).toEqual([null, null, null]);
+
+      choose('__new');
+      type('#folder-name-input', 'Kettlebell');
+      expect(workoutControls()).toEqual([null, null, null]);
+
+      click('#folder-ok');
+      expect(workoutControls().every(e => e !== null)).toBe(true);
+      expect(folderName()).toBe('📁 Kettlebell');
     });
 
     it('lists workouts by id in the dropdown', () => {
