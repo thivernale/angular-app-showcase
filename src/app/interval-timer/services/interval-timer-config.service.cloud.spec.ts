@@ -206,11 +206,50 @@ describe('IntervalTimerConfigService (cloud mode)', () => {
     await vi.waitFor(() => expect(service.cloudStatus()).toBe('synced'));
 
     service.renameFolder(folder.id, 'Kettlebell');
-    const rename = await expectRequest('PUT', '/folders');
+    const rename = await expectRequest('PATCH', '/folders');
     expect(rename.request.body).toEqual({ id: folder.id, name: 'Kettlebell' });
     rename.flush({ folder: rename.request.body });
     await vi.waitFor(() => expect(service.cloudStatus()).toBe('synced'));
     expect(JSON.parse(localStorage.getItem(cloudFoldersKey('me'))!)).toEqual([{ id: folder.id, name: 'Kettlebell' }]);
+  });
+
+  it('does not bring back a folder that another device deleted before a rename reached the server', async () => {
+    const service = createService();
+    await connect(service, { folders: [kb] });
+
+    service.renameFolder('f1', 'Kettlebell');
+    (await expectRequest('PATCH', '/folders')).flush(
+      { error: 'Folder not found' },
+      { status: 404, statusText: 'Not Found' },
+    );
+    await vi.waitFor(() => expect(service.cloudStatus()).toBe('synced'));
+    expect(showAlert).toHaveBeenCalledWith({
+      type: 'danger',
+      text: 'Cloud storage rejected the change to folder "Kettlebell": Folder not found',
+    });
+    expect(localStorage.getItem(cloudPendingKey('me'))).toBeNull();
+
+    const synced = service.sync();
+    (await expectRequest('GET', '/library')).flush(libraryBody({}));
+    await synced;
+    expect(service.folders().map(f => f.name)).toEqual(['My workouts']);
+  });
+
+  it('gives queued changes unique ids', async () => {
+    const service = createService();
+    await connect(service);
+    vi.spyOn(Date, 'now').mockReturnValue(1);
+
+    service.createFolder('A');
+    (await expectRequest('PUT', '/folders')).error(new ProgressEvent('error'));
+    await vi.waitFor(() => expect(service.cloudStatus()).toBe('offline'));
+    service.createFolder('B');
+    (await expectRequest('PUT', '/folders')).error(new ProgressEvent('error'));
+    await vi.waitFor(() => expect(JSON.parse(localStorage.getItem(cloudPendingKey('me'))!)).toHaveLength(2));
+
+    const ids = JSON.parse(localStorage.getItem(cloudPendingKey('me'))!).map((op: { opId: string }) => op.opId);
+    expect(new Set(ids).size).toBe(2);
+    expect(ids[0]).not.toMatch(/^1-/);
   });
 
   it('deletes a folder with one request; the server removes its presets', async () => {

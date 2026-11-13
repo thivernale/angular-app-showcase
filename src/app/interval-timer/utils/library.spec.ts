@@ -54,6 +54,13 @@ describe('upgradePresets', () => {
     expect(presets[0].name).toBe('A');
   });
 
+  it('drops entries that are not objects', () => {
+    const preset = { id: 'p1', folderId: 'f1', name: 'A', rounds: 1, work: 1, rest: 0, playSound: true };
+    const { presets, changed } = upgradePresets([null, 'x', 3, [], preset]);
+    expect(changed).toBe(true);
+    expect(presets).toEqual([preset]);
+  });
+
   it('leaves upgraded presets unchanged', () => {
     const preset = { id: 'p1', folderId: 'f1', name: 'A', rounds: 1, work: 1, rest: 0, playSound: true };
     const { presets, changed } = upgradePresets([preset]);

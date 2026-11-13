@@ -973,6 +973,65 @@ describe('IntervalTimerComponent', () => {
       expect(optionValues('#folder-select')).toEqual(['default', id, '__new', '__rename', '__delete']);
     });
 
+    describe('when the library changes underneath (sync, connect, disconnect)', () => {
+      const selected = () => (component as any).selectedConfigId();
+      const loaded = () => (component as any).loadedId();
+
+      function loadWorkout(id: string) {
+        (component as any).selectedConfigId.set(id);
+        (component as any).loadSelectedConfig();
+        TestBed.tick();
+      }
+
+      it('clears the selection and unloads when the open folder is deleted', () => {
+        const id = kettlebellWithTwoWorkouts();
+        configService.openFolder(id);
+        loadWorkout('s');
+
+        configService.removeFolder(id);
+        TestBed.tick();
+
+        expect(selected()).toBe('');
+        expect(loaded()).toBeNull();
+        expect((component as any).rememberedName()).toBe('');
+      });
+
+      it('unloads like a folder switch when another folder opens', () => {
+        const id = kettlebellWithTwoWorkouts();
+        loadWorkout('t');
+
+        configService.openFolder(id);
+        TestBed.tick();
+
+        expect(selected()).toBe('');
+        expect(loaded()).toBeNull();
+        expect((component as any).rememberedName()).toBe('Tabata');
+      });
+
+      it('clears a selected workout that was deleted', () => {
+        configService.save(preset('t', 'Tabata'));
+        (component as any).selectedConfigId.set('t');
+        TestBed.tick();
+
+        configService.remove('t');
+        TestBed.tick();
+
+        expect(selected()).toBe('');
+      });
+
+      it('keeps a valid selection and loaded workout', () => {
+        const id = kettlebellWithTwoWorkouts();
+        configService.openFolder(id);
+        loadWorkout('g');
+
+        configService.save(preset('x', 'Extra', id));
+        TestBed.tick();
+
+        expect(selected()).toBe('g');
+        expect(loaded()).toBe('g');
+      });
+    });
+
     it('lists workouts by id in the dropdown', () => {
       configService.save(preset('t', 'Tabata'));
       fixture.detectChanges();

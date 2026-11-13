@@ -38,6 +38,7 @@ type Change =
   | { type: 'put'; config: IntervalTimerConfig }
   | { type: 'delete'; id: string }
   | { type: 'putFolder'; folder: IntervalTimerFolder }
+  | { type: 'renameFolder'; folder: IntervalTimerFolder }
   | { type: 'deleteFolder'; id: string };
 
 type PendingOp = { opId: string } & Change;
@@ -53,8 +54,6 @@ interface StorageKeys {
 const REJECTED_STATUSES = [400, 404, 409, 413];
 
 const DEFAULT_FOLDER: IntervalTimerFolder = { id: DEFAULT_FOLDER_ID, name: DEFAULT_FOLDER_NAME };
-
-let opCounter = 0;
 
 @Injectable({
   providedIn: 'root'
@@ -201,7 +200,7 @@ export class IntervalTimerConfigService {
       return false;
     }
     this.library.update(lib => ({ ...lib, folders }));
-    this.queueChange({ type: 'putFolder', folder });
+    this.queueChange({ type: 'renameFolder', folder });
     return true;
   }
 
@@ -397,6 +396,8 @@ export class IntervalTimerConfigService {
         return this.cloud.deletePreset(change.id);
       case 'putFolder':
         return this.cloud.putFolder(change.folder);
+      case 'renameFolder':
+        return this.cloud.renameFolder(change.folder);
       case 'deleteFolder':
         return this.cloud.deleteFolder(change.id);
     }
@@ -468,7 +469,7 @@ export class IntervalTimerConfigService {
   }
 
   private enqueue(profile: string, change: Change): void {
-    const op: PendingOp = { ...change, opId: `${Date.now()}-${opCounter++}` };
+    const op: PendingOp = { ...change, opId: newId() };
     this.writePending(profile, [...this.readPending(profile), op]);
   }
 
@@ -555,6 +556,7 @@ function describeChange(change: Change): string {
     case 'put':
       return `"${change.config.name}"`;
     case 'putFolder':
+    case 'renameFolder':
       return `folder "${change.folder.name}"`;
     case 'delete':
       return 'a deleted workout';
@@ -596,6 +598,10 @@ function applyPending(library: IntervalTimerLibrary, ops: PendingOp[]): Interval
         break;
       case 'putFolder':
         folders = upsert(folders, op.folder);
+        break;
+      case 'renameFolder':
+        // Only an existing folder; one deleted from another device stays deleted.
+        folders = folders.map(f => (f.id === op.folder.id ? op.folder : f));
         break;
       case 'deleteFolder':
         folders = folders.filter(f => f.id !== op.id);

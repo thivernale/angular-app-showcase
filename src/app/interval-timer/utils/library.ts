@@ -30,10 +30,14 @@ export function uniqueName(name: string, taken: readonly string[], maxLength: nu
   }
 }
 
-/** Gives stored presets from before folders an id and the default folder. */
+/**
+ * Gives stored presets from before folders an id and the default folder. Entries that are not objects (corrupt data)
+ * are dropped.
+ */
 export function upgradePresets(raw: unknown[]): { presets: IntervalTimerConfig[]; changed: boolean } {
-  let changed = false;
-  const presets = raw.map((entry) => {
+  const objects = raw.filter((entry) => typeof entry === 'object' && entry !== null && !Array.isArray(entry));
+  let changed = objects.length !== raw.length;
+  const presets = objects.map((entry) => {
     const preset = entry as Partial<IntervalTimerConfig>;
     if (typeof preset.id === 'string' && typeof preset.folderId === 'string') {
       return preset as IntervalTimerConfig;

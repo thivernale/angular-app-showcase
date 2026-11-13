@@ -57,10 +57,12 @@ export interface Store {
   deletePreset(profile: string, id: string): Promise<void>;
   folderExists(profile: string, id: string): Promise<boolean>;
   /**
-   * Creates or renames a folder. Returns false, without saving, when the folder is new
+   * Creates a folder, or replaces it if it exists. Returns false, without saving, when the folder is new
    * and the profile already holds `maxFolders` folders.
    */
   putFolder(profile: string, folder: StoredFolder, maxFolders: number): Promise<boolean>;
+  /** Renames an existing folder. Returns false, without saving, when the folder does not exist. */
+  renameFolder(profile: string, folder: StoredFolder): Promise<boolean>;
   /** Deletes the folder's presets, then the folder; does nothing if it is missing. */
   deleteFolder(profile: string, id: string): Promise<void>;
 }

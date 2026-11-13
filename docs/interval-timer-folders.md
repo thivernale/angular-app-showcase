@@ -93,10 +93,14 @@ filtering by folder happens on the device.
 - `PUT /presets` — body is the preset including `id` and `folderId`. `folderId` must be `default` or an existing
   folder, otherwise `404` (the device drops the change with a message, as for other rejected changes).
 - `DELETE /presets?id=<id>`.
-- `PUT /folders` — body `{ id, name }`; creates or renames. Name 1-40 characters after trimming.
+- `PUT /folders` — body `{ id, name }`; creates the folder (replaces it if it exists). Name 1-40 characters after
+  trimming.
+- `PATCH /folders` — body `{ id, name }`; renames an existing folder, `404` if it no longer exists, so a rename
+  queued on one device does not bring back a folder deleted from another.
 - `DELETE /folders?id=<id>` — deletes the folder **and its presets** on the server (query the profile, delete the
-  matching presets, then the folder, keeping the counters right). Done server side so presets saved into the folder
-  from another device are removed too. `default` cannot be deleted (`400`).
+  matching presets in transactions of up to 99 deletes plus one counter update, then the folder, keeping the counters
+  right). Done server side so presets saved into the folder from another device are removed too. `default` cannot
+  be deleted (`400`).
 - Limits: 200 presets per profile (unchanged), 50 folders per profile (`409`), enforced with the `META` counters in
   the same transaction pattern as presets today.
 
@@ -104,19 +108,23 @@ filtering by folder happens on the device.
 
 ### `IntervalTimerConfigService`
 - Keyed by `id` everywhere: `save`, `load`, `remove`, the pending queue (`put`/`delete` carry ids), `applyPending`.
-- New folder state: `folders` (readonly signal, default folder first then by name), `saveFolder`, `removeFolder`
-  (removes the folder's presets locally and queues one folder delete; the server cascades).
-- Pending ops gain `putFolder` / `deleteFolder`. Order is preserved, so a new folder reaches the server before
-  presets saved into it.
+- Folder state: `folders` (readonly signal, default folder first then by name), `openFolderId`,
+  `openFolderConfigs`, `openFolder`, `createFolder`, `renameFolder`, `removeFolder` (removes the folder's presets
+  locally and queues one folder delete; the server cascades).
+- Pending ops gain `putFolder` (create), `renameFolder` and `deleteFolder`, each with a random `opId`. Order is
+  preserved, so a new folder reaches the server before presets saved into it.
+- Presets whose folder no longer exists are shown in the default folder, so they stay visible and can be deleted.
 - The copy of anonymous presets into a profile keeps their folders: a local folder is matched to a profile folder
   by name (case-insensitive) or created; copies get new ids. A name clash within the same target folder is
   auto-renamed like any other save (` (2)`, …).
 
 ### Storage on the device
 - Anonymous: presets keep the `interval-timer-configs` key; folders go under `interval-timer-folders`. On read,
-  presets without an `id` get one and `folderId: 'default'` (a one-time, in-place upgrade of existing local data).
-- Cloud: new key names for the profile copy and pending queue (e.g. a `-v2` suffix), so caches and queues from the
-  name-keyed version are ignored rather than misread.
+  presets without an `id` get one and `folderId: 'default'` (a one-time, in-place upgrade of existing local data);
+  entries that are not objects are dropped.
+- Cloud: `interval-timer-cloud-v2:<profile>` (presets), `interval-timer-cloud-v2-folders:<profile>` and
+  `interval-timer-cloud-v2-pending:<profile>`. Caches and queues under the name-keyed version's keys are removed,
+  not read.
 - The open folder is remembered per device and per storage (anonymous / profile) under its own key; if it no longer
   exists, the default folder opens.
 
@@ -124,6 +132,8 @@ filtering by folder happens on the device.
 - Folder control (read mode / edit mode) as described above, placed before the workout dropdown.
 - A `loadedId` signal: set by Load, cleared by folder switch, Reset, and deleting the loaded workout. It decides
   whether Save updates or creates, and whether Save as new is shown.
+- The selection and the loaded workout always belong to the open folder: when the library changes without a folder
+  switch (a sync, connecting or disconnecting, a folder deleted elsewhere), they are cleared.
 - Workouts in the dropdown sorted by name.
 - Shared link becomes `?config=<id>`. For links copied before this change, `?config=<name>` still works when
   exactly one workout has that name.
@@ -135,7 +145,7 @@ filtering by folder happens on the device.
 | Folder name | 1-40 characters, unique within the profile (case-insensitive; checked on the device) |
 | Workout name | unchanged (100, including any ` (n)` suffix); unique within a folder by auto-renaming on the device |
 
-## Calls made by Claude (not discussed with the user)
+## Design decisions
 - Folders are stored as their own records (needed because a new folder is empty) rather than derived from presets.
 - Fixed undeletable, unrenamable default folder "My workouts" with id `default`.
 - Folder delete cascades on the server; `GET /library` replaces `GET /presets`; 50-folder cap; name length 40.
@@ -143,8 +153,8 @@ filtering by folder happens on the device.
 - Workouts sorted by name; the open folder remembered per device.
 - After a folder switch, the unloaded workout's name stays the default name for Save (separate from `loadedId`).
 - Old `?config=<name>` links resolved when unambiguous.
-- Existing cloud items keyed by name are not migrated; the operator removes them (or redeploys a fresh stack).
-  Items without an `id` are ignored by `GET /library`.
+- Existing cloud items keyed by name are not migrated: `GET /library` ignores items without an `id`, and
+  `backend/scripts/cleanup-legacy.ts` removes them and recounts `presetCount`.
 
 ## Verification
 1. `cd backend && npm test && npm run typecheck`: routes, validation (ids, folder names), folder cap, cascade

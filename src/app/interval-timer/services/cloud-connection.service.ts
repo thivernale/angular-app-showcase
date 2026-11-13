@@ -75,8 +75,14 @@ export class CloudConnectionService {
     await firstValueFrom(this.http.delete(`${this.apiUrl}/presets`, { headers: this.headers(), params: { id } }));
   }
 
+  /** Creates the folder (or replaces it, if it exists). */
   async putFolder(folder: IntervalTimerFolder): Promise<void> {
     await firstValueFrom(this.http.put(`${this.apiUrl}/folders`, folder, { headers: this.headers() }));
+  }
+
+  /** Renames an existing folder; fails with 404 if it was deleted meanwhile. */
+  async renameFolder(folder: IntervalTimerFolder): Promise<void> {
+    await firstValueFrom(this.http.patch(`${this.apiUrl}/folders`, folder, { headers: this.headers() }));
   }
 
   /** Deletes the folder and, on the server, the presets in it. */
