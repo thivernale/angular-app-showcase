@@ -541,6 +541,28 @@ export class IntervalTimerComponent {
     return id === null ? undefined : this.configService.load(id);
   });
 
+  /**
+   * Keeps the selection and the loaded workout inside the open folder when the library changes without
+   * `switchFolder` (a sync, connecting or disconnecting cloud storage, a folder deleted elsewhere).
+   */
+  private readonly dropStaleSelection = effect(() => {
+    const folderId = this.openFolderId();
+    const ids = new Set(this.savedConfigs().map((c) => c.id));
+    untracked(() => {
+      if (this.selectedConfigId() && !ids.has(this.selectedConfigId())) {
+        this.selectedConfigId.set('');
+      }
+      const loadedId = this.loadedId();
+      if (loadedId === null || ids.has(loadedId)) {
+        return;
+      }
+      const loaded = this.loadedConfig();
+      this.loadedId.set(null);
+      // Like a folder switch: the workout still exists elsewhere, so Save copies it under its name.
+      this.rememberedName.set(loaded && loaded.folderId !== folderId ? loaded.name : '');
+    });
+  });
+
   /** The running workout's name when it is a loaded saved workout, otherwise the page title. */
   protected readonly title = computed(() => {
     const loaded = this.loadedConfig();

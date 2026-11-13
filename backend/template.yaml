@@ -77,7 +77,7 @@ Resources:
         AuthType: NONE
         Cors:
           AllowOrigins: !Ref AllowedOrigins
-          AllowMethods: [ GET, PUT, DELETE ]
+          AllowMethods: [ GET, PUT, PATCH, DELETE ]
           AllowHeaders: [ authorization, content-type ]
           MaxAge: 3600
     Metadata:

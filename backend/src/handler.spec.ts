@@ -53,6 +53,14 @@ class MemoryStore implements Store {
     folders.set(folder.id, folder);
     return true;
   }
+  async renameFolder(profile: string, folder: StoredFolder) {
+    const folders = this.foldersOf(profile);
+    if (!folders.has(folder.id)) {
+      return false;
+    }
+    folders.set(folder.id, folder);
+    return true;
+  }
   async deleteFolder(profile: string, id: string) {
     const presets = this.presetsOf(profile);
     for (const preset of [...presets.values()]) {
@@ -277,6 +285,30 @@ describe('handler', () => {
       const { folders } = await store.listLibrary('alice');
       expect(folders).toHaveLength(1);
       expect(folders[0].name).toBe('KB');
+    });
+
+    it('renames an existing folder with PATCH', async () => {
+      await handler(event('PUT', '/folders', { key: KEY_A, body: folder }));
+      const res = await handler(event('PATCH', '/folders', { key: KEY_A, body: { ...folder, name: ' KB ' } }));
+
+      expect(res.statusCode).toBe(200);
+      expect(parse(res)).toEqual({ folder: { ...folder, name: 'KB', updatedAt: NOW.toISOString() } });
+      expect((await store.listLibrary('alice')).folders.map((f) => f.name)).toEqual(['KB']);
+    });
+
+    it('does not bring back a deleted folder on rename', async () => {
+      const res = await handler(event('PATCH', '/folders', { key: KEY_A, body: folder }));
+
+      expect(res.statusCode).toBe(404);
+      expect(parse(res)).toEqual({ error: 'Folder not found' });
+      expect((await store.listLibrary('alice')).folders).toEqual([]);
+    });
+
+    it('rejects invalid renames', async () => {
+      expect((await handler(event('PATCH', '/folders', { key: KEY_A, body: { id: 'f1', name: '' } }))).statusCode).toBe(
+        400,
+      );
+      expect((await handler(event('PATCH', '/folders', { key: KEY_A, rawBody: '{' }))).statusCode).toBe(400);
     });
 
     it('rejects invalid folders', async () => {

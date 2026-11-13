@@ -80,7 +80,7 @@ await ensureTable();
 createServer(async (req, res) => {
   const cors = {
     'access-control-allow-origin': allowedOrigin,
-    'access-control-allow-methods': 'GET, PUT, DELETE',
+    'access-control-allow-methods': 'GET, PUT, PATCH, DELETE',
     'access-control-allow-headers': 'authorization, content-type',
     'access-control-max-age': '3600',
   };

@@ -126,6 +126,23 @@ export function createHandler(store: Store, now: () => Date = () => new Date()) 
             return json(200, { folder: stored });
           }
 
+          case 'PATCH': {
+            // Rename only: a folder deleted from another device meanwhile is not brought back.
+            const body = readBody(event);
+            if (!body.ok) {
+              return body.response;
+            }
+            const result = validateFolder(body.value);
+            if (!result.ok) {
+              return error(400, result.error);
+            }
+            const stored = { ...result.folder, updatedAt: now().toISOString() };
+            if (!(await store.renameFolder(profile, stored))) {
+              return error(404, 'Folder not found');
+            }
+            return json(200, { folder: stored });
+          }
+
           case 'DELETE': {
             const id = queryId(event);
             if (!id) {

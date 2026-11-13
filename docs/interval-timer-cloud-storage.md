@@ -53,37 +53,42 @@ Operating instructions, API reference and limits: [`backend/README.md`](../backe
   profile.
 
 - `src/handler.ts`: bearer key → hash → key item → profile (never taken from the request). Routes `GET /me`,
-  `GET /library`, `PUT /presets` (body carries the id), `DELETE /presets?id=`, `PUT /folders`, `DELETE /folders?id=`
-  (see [`interval-timer-folders.md`](interval-timer-folders.md)). Throttling maps to `503`, other failures to `500`
+  `GET /library`, `PUT /presets` (body carries the id), `DELETE /presets?id=`, `PUT /folders` (create),
+  `PATCH /folders` (rename), `DELETE /folders?id=` (see [`interval-timer-folders.md`](interval-timer-folders.md)). Throttling maps to `503`, other failures to `500`
   without internals.
 - `src/validate.ts`: field types and bounds, unknown fields stripped. Text limits are shared with the frontend
   (`PRESET_LIMITS`).
 - `src/dynamo-store.ts`: new presets are written in a transaction with a counter increment, so the per-profile cap is
-  enforced without reading the whole profile; deletes decrement it the same way.
-- `scripts/keys.ts`: `create`, `list`, `revoke`.
+  enforced without reading the whole profile; deletes decrement it the same way (a folder delete removes its
+  presets in batches of up to 99 with one counter update each).
+- `scripts/keys.ts`: `create`, `list`, `revoke`. `scripts/cleanup-legacy.ts`: removes preset items from the
+  name-keyed version and recounts `presetCount`.
 
 ## Frontend (`src/app/interval-timer/`)
 
 - `environment*.ts`: `intervalTimerApiUrl` (empty disables the feature), read through the `INTERVAL_TIMER_API_URL`
   injection token.
 - `services/cloud-connection.service.ts`: holds the key and profile, and makes the API calls.
-- `services/interval-timer-config.service.ts`: public API unchanged (`configs`, `save`, `load`, `remove`), plus
-  `connect`, `disconnect`, `sync`, `importLocalPresets`, `cloudStatus` and `localPresetCount`.
-  - Anonymous presets stay under `interval-timer-configs`; a profile's device copy lives under
-    `interval-timer-cloud:<profile>`, so the two never mix.
-  - Changes apply on the device immediately and are queued under `interval-timer-cloud-pending:<profile>`, then sent
-    in order. Network failures keep them queued (status `offline`) and they are replayed on the next sync, on the
+- `services/interval-timer-config.service.ts`: `configs`, `save`, `load`, `remove` and the folder operations (see
+  [`interval-timer-folders.md`](interval-timer-folders.md)), plus `connect`, `disconnect`, `sync`,
+  `importLocalPresets`, `cloudStatus` and `localPresetCount`.
+  - Anonymous presets and folders stay under `interval-timer-configs` and `interval-timer-folders`; a profile's
+    device copy lives under `interval-timer-cloud-v2:<profile>` and `interval-timer-cloud-v2-folders:<profile>`, so
+    the two never mix. (The keys of the version without folders, `interval-timer-cloud:<profile>` and
+    `interval-timer-cloud-pending:<profile>`, are removed when found.)
+  - Changes apply on the device immediately and are queued under `interval-timer-cloud-v2-pending:<profile>`, then
+    sent in order. Network failures keep them queued (status `offline`) and they are replayed on the next sync, on the
     browser's `online` event, and on start-up. Changes the API rejects (`400`/`404`/`409`/`413`) are dropped with a
     message instead of being retried forever.
   - A `401` (revoked key) switches the device back to anonymous mode; unsent changes stay queued for a reconnect.
-  - Copying anonymous presets into a profile renames clashes to `"<name> (local)"`.
+  - Copying anonymous presets into a profile keeps their folders (matched by name, or created) and gives them new
+    ids; a name clash within the target folder is renamed to `"<name> (2)"`, `"<name> (3)"`, …
   - When browser storage is full, a change is refused with a message rather than shown but not saved.
 - `cloud-sync.component.ts`: "Local only" with a key field and Connect, or "Cloud: <profile>" with status, Sync,
   Disconnect and "Copy N local presets". No browser dialogs.
 - Input fields carry `maxlength` matching the API limits.
 
 ## Possible follow-ups
-- CI deployment of the backend (the first deploy is a manual `sam deploy --guided`).
 - Routing the API through CloudFront with an edge key check, if the frontend stays there.
 
 ## Verification

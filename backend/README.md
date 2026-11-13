@@ -20,7 +20,8 @@ table. Without it the app keeps presets in the browser only (anonymous mode). De
 | `GET` | `/library` | `{ folders: [...], presets: [...] }`, the whole profile in one read |
 | `PUT` | `/presets` | Creates or replaces the preset in the JSON body (matched by `id`); returns `{ preset }` |
 | `DELETE` | `/presets?id=<id>` | Deletes a preset |
-| `PUT` | `/folders` | Creates or renames the folder `{ id, name }` in the JSON body; returns `{ folder }` |
+| `PUT` | `/folders` | Creates (or replaces) the folder `{ id, name }` in the JSON body; returns `{ folder }` |
+| `PATCH` | `/folders` | Renames the existing folder `{ id, name }`; `404` if it no longer exists; returns `{ folder }` |
 | `DELETE` | `/folders?id=<id>` | Deletes a folder **and the presets in it** |
 
 Presets and folders are identified by ids generated on the device: 1-64 characters from `A-Z`, `a-z`, `0-9` and `-`.
@@ -76,6 +77,16 @@ npm run keys -- revoke me phone      # that key stops working immediately
 ```
 
 In the app, paste the key into the cloud field of the interval timer once per device.
+
+## Removing presets from the name-keyed version
+
+Presets were first stored keyed by name, without an `id`. `GET /library` ignores such items, but they still count
+towards the 200-preset limit. With `TABLE_NAME` and `AWS_REGION` set as above, while the app is not in use:
+
+```bash
+npm run cleanup-legacy               # dry run: legacy items and real preset/folder counts per profile
+npm run cleanup-legacy -- --apply    # delete the legacy items and set the counters to the real counts
+```
 
 ## Limits
 

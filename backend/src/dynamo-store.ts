@@ -1,4 +1,8 @@
-import { DynamoDBClient, TransactionCanceledException } from '@aws-sdk/client-dynamodb';
+import {
+  ConditionalCheckFailedException,
+  DynamoDBClient,
+  TransactionCanceledException,
+} from '@aws-sdk/client-dynamodb';
 import {
   DeleteCommand,
   DynamoDBDocumentClient,
@@ -7,6 +11,7 @@ import {
   QueryCommand,
   ScanCommand,
   TransactWriteCommand,
+  UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { KeyRecord, Library, Store, StoredFolder, StoredPreset } from './store.js';
 
@@ -28,6 +33,18 @@ export const folderSk = (id: string) => `${FOLDER_PREFIX}${id}`;
 const metaKey = (profile: string) => ({ PK: profilePk(profile), SK: 'META' });
 
 type Counter = 'presetCount' | 'folderCount';
+
+/** Result of `cleanupLegacyPresets` for one profile. */
+export interface ProfileCleanup {
+  profile: string;
+  /** Preset items without an id (from the version that keyed presets by name). */
+  legacyPresets: number;
+  presetCount: number;
+  folderCount: number;
+}
+
+/** DynamoDB allows 100 items per transaction; one of them is the counter update. */
+const DELETES_PER_TRANSACTION = 99;
 
 /**
  * DynamoDB client for the current environment. Set DYNAMODB_ENDPOINT (e.g. http://localhost:8000) to use
@@ -126,13 +143,67 @@ export class DynamoStore implements Store {
     return this.putCounted(profile, item, 'folderCount', maxFolders);
   }
 
+  async renameFolder(profile: string, folder: StoredFolder): Promise<boolean> {
+    const item = { PK: profilePk(profile), SK: folderSk(folder.id), name: folder.name, updatedAt: folder.updatedAt };
+    try {
+      await this.db.send(
+        new PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_exists(PK)' }),
+      );
+      return true;
+    } catch (e) {
+      if (e instanceof ConditionalCheckFailedException) {
+        return false;
+      }
+      throw e;
+    }
+  }
+
   async deleteFolder(profile: string, id: string): Promise<void> {
     // Presets first, so a failure part-way leaves the folder in place and the delete can be retried.
     const { presets } = await this.listLibrary(profile);
-    for (const preset of presets.filter((p) => p.folderId === id)) {
-      await this.deletePreset(profile, preset.id);
+    const ids = presets.filter((p) => p.folderId === id).map((p) => p.id);
+    for (let i = 0; i < ids.length; i += DELETES_PER_TRANSACTION) {
+      await this.deletePresets(profile, ids.slice(i, i + DELETES_PER_TRANSACTION));
     }
     await this.deleteCounted(profile, folderSk(id), 'folderCount');
+  }
+
+  /**
+   * Deletes up to DELETES_PER_TRANSACTION presets with one counter update. If one of them is already gone (deleted
+   * from another device meanwhile), the transaction is cancelled and they are deleted one by one instead, so the
+   * counter stays exact.
+   */
+  private async deletePresets(profile: string, ids: string[]): Promise<void> {
+    try {
+      await this.db.send(
+        new TransactWriteCommand({
+          TransactItems: [
+            ...ids.map((presetId) => ({
+              Delete: {
+                TableName: this.tableName,
+                Key: { PK: profilePk(profile), SK: presetSk(presetId) },
+                ConditionExpression: 'attribute_exists(PK)',
+              },
+            })),
+            {
+              Update: {
+                TableName: this.tableName,
+                Key: metaKey(profile),
+                UpdateExpression: 'ADD presetCount :minus',
+                ExpressionAttributeValues: { ':minus': -ids.length },
+              },
+            },
+          ],
+        }),
+      );
+    } catch (e) {
+      if (!cancellationCodes(e).includes('ConditionalCheckFailed')) {
+        throw e;
+      }
+      for (const presetId of ids) {
+        await this.deletePreset(profile, presetId);
+      }
+    }
   }
 
   /**
@@ -250,6 +321,66 @@ export class DynamoStore implements Store {
       startKey = page.LastEvaluatedKey;
     } while (startKey);
     return keys;
+  }
+
+  /**
+   * Finds preset items without an id (written before presets had ids) and recounts each profile's presets and
+   * folders. With `apply`, deletes those items and stores the counts in the profile's counter item; otherwise only
+   * reports. Scans the table, and setting the counters races with writes made meanwhile, so run it while the app is
+   * not in use.
+   */
+  async cleanupLegacyPresets(apply: boolean): Promise<ProfileCleanup[]> {
+    const profiles = new Map<string, ProfileCleanup>();
+    const legacyKeys: { PK: string; SK: string }[] = [];
+    let startKey: Record<string, unknown> | undefined;
+    do {
+      const page = await this.db.send(
+        new ScanCommand({
+          TableName: this.tableName,
+          FilterExpression: 'begins_with(PK, :profile)',
+          ExpressionAttributeValues: { ':profile': 'PROFILE#' },
+          ExclusiveStartKey: startKey,
+        }),
+      );
+      for (const item of page.Items ?? []) {
+        const pk = String(item['PK']);
+        const sk = String(item['SK']);
+        const profile = pk.slice('PROFILE#'.length);
+        let entry = profiles.get(profile);
+        if (!entry) {
+          entry = { profile, legacyPresets: 0, presetCount: 0, folderCount: 0 };
+          profiles.set(profile, entry);
+        }
+        if (sk.startsWith(PRESET_PREFIX)) {
+          if (typeof (item['preset'] as { id?: unknown } | undefined)?.id === 'string') {
+            entry.presetCount++;
+          } else {
+            entry.legacyPresets++;
+            legacyKeys.push({ PK: pk, SK: sk });
+          }
+        } else if (sk.startsWith(FOLDER_PREFIX)) {
+          entry.folderCount++;
+        }
+      }
+      startKey = page.LastEvaluatedKey;
+    } while (startKey);
+
+    if (apply) {
+      for (const Key of legacyKeys) {
+        await this.db.send(new DeleteCommand({ TableName: this.tableName, Key }));
+      }
+      for (const { profile, presetCount, folderCount } of profiles.values()) {
+        await this.db.send(
+          new UpdateCommand({
+            TableName: this.tableName,
+            Key: metaKey(profile),
+            UpdateExpression: 'SET presetCount = :presets, folderCount = :folders',
+            ExpressionAttributeValues: { ':presets': presetCount, ':folders': folderCount },
+          }),
+        );
+      }
+    }
+    return [...profiles.values()].sort((a, b) => a.profile.localeCompare(b.profile));
   }
 
   async deleteKey(keyHash: string): Promise<void> {
