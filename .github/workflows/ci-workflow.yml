@@ -42,6 +42,132 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Upload build output
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser
+          path: dist/${{ github.event.repository.name }}/browser
+          retention-days: 1
+
+  backend-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+        with:
+          show-progress: 'false'
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          # Matches the Lambda runtime in backend/template.yaml
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund --loglevel=error
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+  # Deploys the storage API (backend/) when it changed. Runs before the frontend deploy, so a frontend that needs a
+  # new API version never goes live against the old one.
+  deploy-backend:
+    if: github.ref == 'refs/heads/main'
+    needs: [ build, backend-test ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # GitHub OIDC token for the AWS deploy role
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+        with:
+          show-progress: 'false'
+          fetch-depth: 0
+
+      - name: Check for backend changes
+        id: changes
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "${{ github.event_name }}" != "push" ] \
+            || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null \
+            || ! git diff --quiet "$BEFORE" "$GITHUB_SHA" -- .; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No changes under backend/; skipping the deploy."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        if: steps.changes.outputs.deploy == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        if: steps.changes.outputs.deploy == 'true'
+        run: npm ci --prefer-offline --no-audit --no-fund --loglevel=error
+
+      - name: Setup AWS SAM CLI
+        if: steps.changes.outputs.deploy == 'true'
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Configure AWS credentials
+        if: steps.changes.outputs.deploy == 'true'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.BACKEND_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.BACKEND_AWS_REGION }}
+
+      - name: Build
+        if: steps.changes.outputs.deploy == 'true'
+        run: sam build
+
+      - name: Deploy
+        if: steps.changes.outputs.deploy == 'true'
+        env:
+          STACK_NAME: ${{ vars.BACKEND_STACK_NAME }}
+          ALLOWED_ORIGINS: ${{ vars.BACKEND_ALLOWED_ORIGINS }}
+          ALERT_EMAIL: ${{ secrets.BACKEND_ALERT_EMAIL }}
+        run: |
+          sam deploy \
+            --stack-name "$STACK_NAME" \
+            --region "$AWS_REGION" \
+            --resolve-s3 \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides "AllowedOrigins=$ALLOWED_ORIGINS" "AlertEmail=$ALERT_EMAIL"
+
+  deploy-frontend:
+    if: github.ref == 'refs/heads/main'
+    needs: [ build, deploy-backend ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build output
+        uses: actions/download-artifact@v4
+        with:
+          name: browser
+          path: browser
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
@@ -53,7 +179,7 @@ jobs:
         env:
           APPLICATION_NAME: ${{ github.event.repository.name }}
         run: |
-          SRC_PATH="dist/${APPLICATION_NAME}/browser"
+          SRC_PATH="browser"
           DEST_PATH="s3://${{vars.AWS_S3_BUCKET_NAME}}/${APPLICATION_NAME}"
           echo "Deploying $SRC_PATH to $DEST_PATH"
 

@@ -56,6 +56,26 @@ trailing slash.
 
 Check it: `curl -i <FunctionUrl>/me` must return `401`.
 
+### From CI
+
+`.github/workflows/ci-workflow.yml` runs the backend tests on every branch. On `main` it deploys the stack when
+something under `backend/` changed, and deploys the frontend only after that, so a new frontend never goes live
+against an older API. Branches other than `main` are never deployed.
+
+The deploy job signs in to AWS with GitHub's OIDC token (no stored AWS keys). One-time setup, after a first manual
+`sam deploy --guided` has created the stack:
+
+1. In IAM, add the identity provider `token.actions.githubusercontent.com` (audience `sts.amazonaws.com`) if the
+   account does not have it yet.
+2. Create a role whose trust policy allows `sts:AssumeRoleWithWebIdentity` for that provider, limited to this
+   repository's `main` branch (`token.actions.githubusercontent.com:sub` =
+   `repo:<owner>/<repo>:ref:refs/heads/main`). Give it what `sam deploy` needs for this stack: CloudFormation on the
+   stack, the SAM-managed artifact bucket (`aws-sam-cli-managed-default*`), and the Lambda, DynamoDB, IAM role,
+   CloudWatch Logs and Budgets resources the template creates.
+3. In the GitHub repository settings, add the variables `BACKEND_DEPLOY_ROLE_ARN`, `BACKEND_AWS_REGION`,
+   `BACKEND_STACK_NAME` and `BACKEND_ALLOWED_ORIGINS` (the `AllowedOrigins` parameter), and the secret
+   `BACKEND_ALERT_EMAIL` (the `AlertEmail` parameter).
+
 ## Keys
 
 The script needs the table's real name, which CloudFormation generates (e.g. `<stack>-Table-1A2B3C4D5E6F`), and the
