@@ -43,6 +43,17 @@ sam build
 sam deploy --guided   # first time; asks for the stack name, region and the parameters below
 ```
 
+Or without prompts (creates the stack the first time, updates it afterwards; the same command CI runs):
+
+```bash
+sam deploy --stack-name <stack name> --region <region> --resolve-s3 \
+  --capabilities CAPABILITY_IAM --no-confirm-changeset --no-fail-on-empty-changeset \
+  --parameter-overrides AllowedOrigins=<origins> AlertEmail=<email>
+```
+
+Keep the stack name and region the same on every deploy: a different one creates a second stack with a new, empty
+table and a new Function URL.
+
 Parameters:
 
 | Parameter | Meaning |
@@ -65,18 +76,20 @@ frontend is built after that with this URL written into `environment.ts` and the
 goes live against an older API. Branches other than `main` are never deployed.
 
 The deploy job signs in to AWS with GitHub's OIDC token (no stored AWS keys). One-time setup, after a first manual
-`sam deploy --guided` has created the stack:
+`sam deploy` has created the stack:
 
 1. In IAM, add the identity provider `token.actions.githubusercontent.com` (audience `sts.amazonaws.com`) if the
    account does not have it yet.
 2. Create a role whose trust policy allows `sts:AssumeRoleWithWebIdentity` for that provider, limited to this
    repository's `main` branch (`token.actions.githubusercontent.com:sub` =
-   `repo:<owner>/<repo>:ref:refs/heads/main`). Give it what `sam deploy` needs for this stack: CloudFormation on the
-   stack (including `cloudformation:DescribeStacks`, used to read the URL), the SAM-managed artifact bucket (`aws-sam-cli-managed-default*`), and the Lambda, DynamoDB, IAM role,
-   CloudWatch Logs and Budgets resources the template creates.
-3. In the GitHub repository settings, add the variables `BACKEND_DEPLOY_ROLE_ARN`, `BACKEND_AWS_REGION`,
-   `BACKEND_STACK_NAME` and `BACKEND_ALLOWED_ORIGINS` (the `AllowedOrigins` parameter), and the secret
-   `BACKEND_ALERT_EMAIL` (the `AlertEmail` parameter).
+   `repo:<owner>/<repo>:ref:refs/heads/main`). Give it what `sam deploy` needs for this stack: CloudFormation on
+   the stack (including `cloudformation:DescribeStacks`, used to read the URL), the SAM-managed artifact bucket
+   (`aws-sam-cli-managed-default*`), and the Lambda, DynamoDB, IAM role, CloudWatch Logs and Budgets resources the
+   template creates.
+3. In the GitHub repository settings, add the variables `BACKEND_DEPLOY_ROLE_ARN`, `BACKEND_STACK_NAME` and
+   `BACKEND_ALLOWED_ORIGINS` (the `AllowedOrigins` parameter), and the secret `BACKEND_ALERT_EMAIL` (the `AlertEmail`
+   parameter). The stack is deployed to the region in the existing `AWS_REGION` variable, which the frontend deploy
+   uses as well, so the stack must be in that region.
 
 ## Keys
 
