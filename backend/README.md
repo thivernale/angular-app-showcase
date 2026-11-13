@@ -51,16 +51,18 @@ Parameters:
 | `AlertEmail` | Receives the cost budget alert (any actual cost above $0.01 in a month) |
 | `ReadCapacityUnits` / `WriteCapacityUnits` | Default 5 each. Free while all provisioned tables in the region total 25 or less of each |
 
-Then set `intervalTimerApiUrl` in `src/environments/environment*.ts` to the `FunctionUrl` stack output, without the
-trailing slash.
+The frontend reaches the API through `intervalTimerApiUrl` in `src/environments/environment.ts`, the `FunctionUrl`
+stack output without the trailing slash. It stays empty in the repository: the CI deploy fills it in (see below).
+For a production build made by hand, set it locally and don't commit it.
 
 Check it: `curl -i <FunctionUrl>/me` must return `401`.
 
 ### From CI
 
 `.github/workflows/ci-workflow.yml` runs the backend tests on every branch. On `main` it deploys the stack when
-something under `backend/` changed, and deploys the frontend only after that, so a new frontend never goes live
-against an older API. Branches other than `main` are never deployed.
+something under `backend/` changed, then reads the stack's `FunctionUrl` output (on every run, deployed or not). The
+frontend is built after that with this URL written into `environment.ts` and then deployed, so a new frontend never
+goes live against an older API. Branches other than `main` are never deployed.
 
 The deploy job signs in to AWS with GitHub's OIDC token (no stored AWS keys). One-time setup, after a first manual
 `sam deploy --guided` has created the stack:
@@ -70,7 +72,7 @@ The deploy job signs in to AWS with GitHub's OIDC token (no stored AWS keys). On
 2. Create a role whose trust policy allows `sts:AssumeRoleWithWebIdentity` for that provider, limited to this
    repository's `main` branch (`token.actions.githubusercontent.com:sub` =
    `repo:<owner>/<repo>:ref:refs/heads/main`). Give it what `sam deploy` needs for this stack: CloudFormation on the
-   stack, the SAM-managed artifact bucket (`aws-sam-cli-managed-default*`), and the Lambda, DynamoDB, IAM role,
+   stack (including `cloudformation:DescribeStacks`, used to read the URL), the SAM-managed artifact bucket (`aws-sam-cli-managed-default*`), and the Lambda, DynamoDB, IAM role,
    CloudWatch Logs and Budgets resources the template creates.
 3. In the GitHub repository settings, add the variables `BACKEND_DEPLOY_ROLE_ARN`, `BACKEND_AWS_REGION`,
    `BACKEND_STACK_NAME` and `BACKEND_ALLOWED_ORIGINS` (the `AllowedOrigins` parameter), and the secret
