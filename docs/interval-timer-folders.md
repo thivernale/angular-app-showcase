@@ -129,7 +129,9 @@ filtering by folder happens on the device.
   exists, the default folder opens.
 
 ### `IntervalTimerComponent`
-- Folder control (read mode / edit mode) as described above, placed before the workout dropdown.
+- Folder control (read mode / edit mode) as described above, placed before the workout dropdown. While it is not
+  in read mode (choosing, naming or deleting a folder), the workout controls are hidden, so a workout cannot be saved
+  into the previous folder while a new folder name is still being typed.
 - A `loadedId` signal: set by Load, cleared by folder switch, Reset, and deleting the loaded workout. It decides
   whether Save updates or creates, and whether Save as new is shown.
 - The selection and the loaded workout always belong to the open folder: when the library changes without a folder

@@ -6,6 +6,7 @@ import { AlertService } from '../../components/alert/services/alert.service';
 import { IntervalTimerConfig, IntervalTimerFolder } from '../types/interval-timer-config.interface';
 import {
   CLOUD_KEY_KEY,
+  CLOUD_LABEL_KEY,
   CLOUD_PROFILE_KEY,
   cloudFoldersKey,
   cloudOpenFolderKey,
@@ -65,6 +66,7 @@ describe('IntervalTimerConfigService (cloud mode)', () => {
   function storeConnection(profile = 'me', cache: IntervalTimerConfig[] = [], folders: IntervalTimerFolder[] = []) {
     localStorage.setItem(CLOUD_KEY_KEY, KEY);
     localStorage.setItem(CLOUD_PROFILE_KEY, profile);
+    localStorage.setItem(CLOUD_LABEL_KEY, 'laptop');
     localStorage.setItem(cloudPresetsKey(profile), JSON.stringify(cache));
     localStorage.setItem(cloudFoldersKey(profile), JSON.stringify(folders));
   }
@@ -193,6 +195,35 @@ describe('IntervalTimerConfigService (cloud mode)', () => {
     del.flush(null, { status: 204, statusText: 'No Content' });
     await vi.waitFor(() => expect(service.cloudStatus()).toBe('synced'));
     expect(service.configs()).toEqual([]);
+  });
+
+  it('keeps the key label on connect and forgets it on disconnect', async () => {
+    const service = createService();
+    await connect(service);
+
+    expect(service.keyLabel()).toBe('laptop');
+    expect(localStorage.getItem(CLOUD_LABEL_KEY)).toBe('laptop');
+
+    service.disconnect();
+    expect(service.keyLabel()).toBeNull();
+    expect(localStorage.getItem(CLOUD_LABEL_KEY)).toBeNull();
+  });
+
+  it('fetches the key label once for a device connected before labels were kept', async () => {
+    storeConnection();
+    localStorage.removeItem(CLOUD_LABEL_KEY);
+    const service = createService();
+    expect(service.keyLabel()).toBeNull();
+
+    (await expectRequest('GET', '/me')).flush({ profile: 'me', label: 'phone' });
+    (await expectRequest('GET', '/library')).flush(libraryBody({}));
+    await vi.waitFor(() => expect(service.cloudStatus()).toBe('synced'));
+    expect(service.keyLabel()).toBe('phone');
+
+    const synced = service.sync();
+    (await expectRequest('GET', '/library')).flush(libraryBody({}));
+    await synced;
+    http.expectNone(`${API}/me`);
   });
 
   it('sends new and renamed folders', async () => {

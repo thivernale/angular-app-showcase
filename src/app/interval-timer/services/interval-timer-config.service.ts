@@ -11,7 +11,7 @@ import {
   PRESET_LIMITS,
 } from '../types/interval-timer-config.interface';
 import { byName, newId, uniqueName, upgradePresets } from '../utils/library';
-import { CloudConnectionService } from './cloud-connection.service';
+import { CloudConnectionService, CloudIdentity } from './cloud-connection.service';
 import {
   cloudFoldersKey,
   cloudOpenFolderKey,
@@ -84,6 +84,8 @@ export class IntervalTimerConfigService {
   readonly cloudEnabled = this.cloud.enabled;
   /** Connected cloud profile, or null in anonymous mode. */
   readonly profile = this.cloud.profile;
+  /** Label of this device's key, e.g. "laptop"; null until known. */
+  readonly keyLabel = this.cloud.label;
 
   private readonly statusSignal = signal<CloudStatus>(this.cloud.connected() ? 'syncing' : 'local');
   readonly cloudStatus = this.statusSignal.asReadonly();
@@ -229,9 +231,9 @@ export class IntervalTimerConfigService {
     }
     this.statusSignal.set('connecting');
 
-    let profile: string;
+    let identity: CloudIdentity;
     try {
-      profile = (await this.cloud.verify(trimmed)).profile;
+      identity = await this.cloud.verify(trimmed);
     } catch (e) {
       this.statusSignal.set('local');
       this.alertService.showAlert({
@@ -241,7 +243,8 @@ export class IntervalTimerConfigService {
       return false;
     }
 
-    this.cloud.setConnection(trimmed, profile);
+    const { profile } = identity;
+    this.cloud.setConnection(trimmed, identity);
     removeLegacyKeys(profile);
     this.localPresetCountSignal.set(this.readList(LOCAL_PRESETS_KEY).length);
     this.switchStorage();
@@ -270,6 +273,13 @@ export class IntervalTimerConfigService {
     this.statusSignal.set('syncing');
     try {
       const remote = await this.serialize(async () => {
+        if (this.cloud.label() === null) {
+          // Connected before the label was kept on the device: fetch it once.
+          const identity = await this.cloud.verify();
+          if (identity.profile === profile) {
+            this.cloud.setLabel(identity.label);
+          }
+        }
         await this.flushPending(profile);
         return this.cloud.listLibrary();
       });

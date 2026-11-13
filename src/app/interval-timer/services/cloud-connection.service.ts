@@ -6,7 +6,7 @@ import {
   IntervalTimerFolder,
   IntervalTimerLibrary,
 } from '../types/interval-timer-config.interface';
-import { CLOUD_KEY_KEY, CLOUD_PROFILE_KEY, INTERVAL_TIMER_API_URL } from './cloud-storage';
+import { CLOUD_KEY_KEY, CLOUD_LABEL_KEY, CLOUD_PROFILE_KEY, INTERVAL_TIMER_API_URL } from './cloud-storage';
 
 export interface CloudIdentity {
   profile: string;
@@ -28,28 +28,39 @@ export class CloudConnectionService {
   private readonly profileSignal = signal<string | null>(
     this.keySignal() ? localStorage.getItem(CLOUD_PROFILE_KEY) : null,
   );
+  private readonly labelSignal = signal<string | null>(this.keySignal() ? localStorage.getItem(CLOUD_LABEL_KEY) : null);
 
   /** Profile this device is connected to, or null in anonymous mode. */
   readonly profile = this.profileSignal.asReadonly();
+  /** Label of this device's key, or null when not connected or not known yet. */
+  readonly label = this.labelSignal.asReadonly();
   readonly connected = computed(() => this.keySignal() !== null && this.profileSignal() !== null);
 
-  /** Checks a key with the API without storing it. */
-  verify(key: string): Promise<CloudIdentity> {
+  /** Checks a key with the API without storing it; without an argument, checks the stored key. */
+  verify(key = this.keySignal() ?? ''): Promise<CloudIdentity> {
     return firstValueFrom(this.http.get<CloudIdentity>(`${this.apiUrl}/me`, { headers: this.headers(key) }));
   }
 
-  setConnection(key: string, profile: string): void {
+  setConnection(key: string, identity: CloudIdentity): void {
     localStorage.setItem(CLOUD_KEY_KEY, key);
-    localStorage.setItem(CLOUD_PROFILE_KEY, profile);
+    localStorage.setItem(CLOUD_PROFILE_KEY, identity.profile);
     this.keySignal.set(key);
-    this.profileSignal.set(profile);
+    this.profileSignal.set(identity.profile);
+    this.setLabel(identity.label);
+  }
+
+  setLabel(label: string): void {
+    localStorage.setItem(CLOUD_LABEL_KEY, label);
+    this.labelSignal.set(label);
   }
 
   clearConnection(): void {
     localStorage.removeItem(CLOUD_KEY_KEY);
     localStorage.removeItem(CLOUD_PROFILE_KEY);
+    localStorage.removeItem(CLOUD_LABEL_KEY);
     this.keySignal.set(null);
     this.profileSignal.set(null);
+    this.labelSignal.set(null);
   }
 
   /** The profile's folders and presets. */
