@@ -5,7 +5,8 @@
  *   npm run local
  *
  * Environment (defaults in brackets): PORT [3100], DYNAMODB_ENDPOINT [http://localhost:8000],
- * TABLE_NAME [interval-timer-local], ALLOWED_ORIGIN [http://localhost:4200].
+ * TABLE_NAME [interval-timer-local], ALLOWED_ORIGIN [http://localhost:4200], HEARTBEAT_MINUTES [10].
+ * Log lines are timestamped; an "alive" line every HEARTBEAT_MINUTES and a line on exit show when the server stopped.
  * Creates the table on start if it does not exist. CORS is handled here the way the Function URL handles it in AWS.
  */
 import { CreateTableCommand, ResourceInUseException } from '@aws-sdk/client-dynamodb';
@@ -18,6 +19,30 @@ process.env['TABLE_NAME'] ??= 'interval-timer-local';
 const port = Number(process.env['PORT'] ?? 3100);
 const allowedOrigin = process.env['ALLOWED_ORIGIN'] ?? 'http://localhost:4200';
 const tableName = process.env['TABLE_NAME'];
+/** Minutes between "alive" lines in the log; 0 turns them off. */
+const heartbeatMinutes = Number(process.env['HEARTBEAT_MINUTES'] ?? 10);
+
+/** Writes a timestamped line, so the log shows when the server last did something. */
+function log(message: string): void {
+  console.log(`${new Date().toISOString()} ${message}`);
+}
+
+// Records how the process ends. A process killed outright cannot log; then the last "alive" line shows roughly when.
+process.on('exit', (code) => log(`Exiting with code ${code}`));
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK'] as const) {
+  process.on(signal, () => {
+    log(`Received ${signal}, stopping`);
+    process.exit(0);
+  });
+}
+process.on('uncaughtException', (e) => {
+  log(`Uncaught exception: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`);
+  process.exit(1);
+});
+process.on('unhandledRejection', (e) => {
+  log(`Unhandled rejection: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`);
+  process.exit(1);
+});
 
 // Imported after the environment is set, so the handler's store uses DynamoDB Local.
 const { createDynamoClient } = await import('../src/dynamo-store.js');
@@ -40,7 +65,7 @@ async function ensureTable(): Promise<void> {
         ProvisionedThroughput: { ReadCapacityUnits: 5, WriteCapacityUnits: 5 },
       }),
     );
-    console.log(`Created table ${tableName}`);
+    log(`Created table ${tableName}`);
   } catch (e) {
     if (!(e instanceof ResourceInUseException)) {
       throw e;
@@ -91,7 +116,18 @@ createServer(async (req, res) => {
   const result = await handler(toEvent(req, await readBody(req)));
   res.writeHead(result.statusCode ?? 200, { ...cors, ...(result.headers as Record<string, string>) });
   res.end(result.body ?? '');
-  console.log(`${req.method} ${req.url} -> ${result.statusCode}`);
+  log(`${req.method} ${req.url} -> ${result.statusCode}`);
 }).listen(port, () => {
-  console.log(`Storage API on http://localhost:${port} (table ${tableName} at ${process.env['DYNAMODB_ENDPOINT']})`);
+  log(
+    `Storage API on http://localhost:${port} (table ${tableName} at ${process.env['DYNAMODB_ENDPOINT']}, ` +
+      `pid ${process.pid})`,
+  );
 });
+
+if (heartbeatMinutes > 0) {
+  const started = Date.now();
+  setInterval(
+    () => log(`Alive for ${Math.round((Date.now() - started) / 60_000)} min`),
+    heartbeatMinutes * 60_000,
+  ).unref();
+}
