@@ -75,21 +75,61 @@ something under `backend/` changed, then reads the stack's `FunctionUrl` output 
 frontend is built after that with this URL written into `environment.ts` and then deployed, so a new frontend never
 goes live against an older API. Branches other than `main` are never deployed.
 
-The deploy job signs in to AWS with GitHub's OIDC token (no stored AWS keys). One-time setup, after a first manual
-`sam deploy` has created the stack:
+The deploy job signs in to AWS with GitHub's OIDC token (no stored AWS keys) and assumes a deploy role. The role
+has two policies, both in [`deploy-role/`](deploy-role):
 
-1. In IAM, add the identity provider `token.actions.githubusercontent.com` (audience `sts.amazonaws.com`) if the
-   account does not have it yet.
-2. Create a role whose trust policy allows `sts:AssumeRoleWithWebIdentity` for that provider, limited to this
-   repository's `main` branch (`token.actions.githubusercontent.com:sub` =
-   `repo:<owner>/<repo>:ref:refs/heads/main`). Give it what `sam deploy` needs for this stack: CloudFormation on
-   the stack (including `cloudformation:DescribeStacks`, used to read the URL), the SAM-managed artifact bucket
-   (`aws-sam-cli-managed-default*`), and the Lambda, DynamoDB, IAM role, CloudWatch Logs and Budgets resources the
-   template creates.
-3. In the GitHub repository settings, add the variables `BACKEND_DEPLOY_ROLE_ARN`, `BACKEND_STACK_NAME` and
-   `BACKEND_ALLOWED_ORIGINS` (the `AllowedOrigins` parameter), and the secret `BACKEND_ALERT_EMAIL` (the `AlertEmail`
-   parameter). The stack is deployed to the region in the existing `AWS_REGION` variable, which the frontend deploy
-   uses as well, so the stack must be in that region.
+- `trust-policy.json`: who may assume the role. Only workflow runs on this repository's `main` branch.
+- `permissions-policy.json`: what `sam deploy` needs. CloudFormation creates and updates the stack's resources with
+  the caller's permissions, so the role needs rights on each resource type in `template.yaml`, limited to names
+  starting with the stack name:
+
+  | Statement | Needed for |
+  |---|---|
+  | `CloudFormationStack`, `CloudFormationGlobal` | Change sets for the stack, the SAM transform, reading the `FunctionUrl` output |
+  | `SamArtifactBucket` | Uploading the built code to the bucket `--resolve-s3` created on the first deploy |
+  | `Lambda` | The function, its reserved concurrency and its public Function URL |
+  | `FunctionRole`, `PassFunctionRoleToLambda` | The function's own role (created by SAM, gives it access to the table) |
+  | `Table` | The DynamoDB table (its definition, not its data) |
+  | `LogGroup`, `LogGroupDescribe` | The function's log group and its retention |
+  | `Budget` | The monthly cost alert |
+
+  The create and delete actions are only used when an update replaces a resource or is rolled back; a code-only
+  deploy uses `UpdateFunctionCode` and read actions. If a deploy fails with `AccessDenied`, the error names the
+  missing action.
+
+One-time setup, after a first manual `sam deploy` has created the stack (the managed artifact bucket must exist):
+
+```bash
+cd backend/deploy-role
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+REGION=<region of the stack>          # must equal the AWS_REGION repository variable
+STACK_NAME=<stack name>
+GITHUB_REPOSITORY=<owner>/<repo>
+ROLE_NAME=github-deploy-$STACK_NAME   # deliberately not starting with the stack name
+
+# The OIDC identity provider, once per account (skip if IAM already lists token.actions.githubusercontent.com)
+aws iam create-open-id-connect-provider --url https://token.actions.githubusercontent.com \
+  --client-id-list sts.amazonaws.com
+
+fill() { sed -e "s#ACCOUNT_ID#$ACCOUNT_ID#g" -e "s#REGION#$REGION#g" -e "s#STACK_NAME#$STACK_NAME#g" \
+  -e "s#GITHUB_REPOSITORY#$GITHUB_REPOSITORY#g" "$1"; }
+aws iam create-role --role-name "$ROLE_NAME" --assume-role-policy-document "$(fill trust-policy.json)"
+aws iam put-role-policy --role-name "$ROLE_NAME" --policy-name sam-deploy \
+  --policy-document "$(fill permissions-policy.json)"
+aws iam get-role --role-name "$ROLE_NAME" --query Role.Arn --output text   # value for BACKEND_DEPLOY_ROLE_ARN
+```
+
+Then, in the GitHub repository settings (Settings → Secrets and variables → Actions):
+
+| Name | Kind | Value |
+|---|---|---|
+| `BACKEND_DEPLOY_ROLE_ARN` | variable | the role ARN printed above |
+| `BACKEND_STACK_NAME` | variable | the stack name |
+| `BACKEND_ALLOWED_ORIGINS` | variable | the `AllowedOrigins` parameter |
+| `BACKEND_ALERT_EMAIL` | secret | the `AlertEmail` parameter |
+
+The stack is deployed to the region in the existing `AWS_REGION` variable, which the frontend deploy uses as well.
+A stack name or region that differs from the existing stack creates a second stack with an empty table.
 
 ## Keys
 
