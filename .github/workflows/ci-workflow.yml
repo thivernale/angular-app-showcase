@@ -116,7 +116,11 @@ jobs:
 
       - name: Install dependencies
         if: steps.changes.outputs.deploy == 'true'
-        run: npm ci --prefer-offline --no-audit --no-fund --loglevel=error
+        # sam build installs only production dependencies in its build copy, so it looks for esbuild (a dev
+        # dependency) on the PATH.
+        run: |
+          npm ci --prefer-offline --no-audit --no-fund --loglevel=error
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
 
       - name: Setup AWS SAM CLI
         if: steps.changes.outputs.deploy == 'true'
