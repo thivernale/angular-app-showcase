@@ -70,8 +70,8 @@ Check it: `curl -i <FunctionUrl>/me` must return `401`.
 
 ### From CI
 
-`.github/workflows/ci-workflow.yml` runs the backend tests on every branch. On `main` it deploys the stack when
-something under `backend/` changed, then reads the stack's `FunctionUrl` output (on every run, deployed or not). The
+`.github/workflows/ci-workflow.yml` runs the backend tests on every branch. On `main` it deploys the stack on every run
+(when nothing changed, the deploy is a no-op), then reads the stack's `FunctionUrl` output. The
 frontend is built after that with this URL written into `environment.ts` and then deployed, so a new frontend never
 goes live against an older API. Branches other than `main` are never deployed.
 
