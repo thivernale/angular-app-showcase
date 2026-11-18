@@ -71,8 +71,10 @@ jobs:
       - name: Run tests
         run: npm test
 
-  # Deploys the storage API (backend/) when it changed, then reads its URL for the frontend build. Runs before the
-  # frontend deploy, so a frontend that needs a new API version never goes live against the old one.
+  # Deploys the storage API (backend/), then reads its URL for the frontend build. Runs before the frontend deploy,
+  # so a frontend that needs a new API version never goes live against the old one. It runs on every main build:
+  # when nothing changed, sam deploy finds an empty change set and changes nothing, and a deploy that failed earlier
+  # cannot be skipped by a later commit that does not touch backend/.
   deploy-backend:
     if: github.ref == 'refs/heads/main'
     needs: [ build, backend-test ]
@@ -90,24 +92,9 @@ jobs:
         uses: actions/checkout@v7.0.1
         with:
           show-progress: 'false'
-          fetch-depth: 0
-
-      - name: Check for backend changes
-        id: changes
-        env:
-          BEFORE: ${{ github.event.before }}
-        run: |
-          if [ "${{ github.event_name }}" != "push" ] \
-            || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null \
-            || ! git diff --quiet "$BEFORE" "$GITHUB_SHA" -- .; then
-            echo "deploy=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No changes under backend/; skipping the deploy."
-            echo "deploy=false" >> "$GITHUB_OUTPUT"
-          fi
+          fetch-depth: 1
 
       - name: Setup Node.js
-        if: steps.changes.outputs.deploy == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: 22.x
@@ -115,7 +102,6 @@ jobs:
           cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies
-        if: steps.changes.outputs.deploy == 'true'
         # sam build installs only production dependencies in its build copy, so it looks for esbuild (a dev
         # dependency) on the PATH.
         run: |
@@ -123,7 +109,6 @@ jobs:
           echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
 
       - name: Setup AWS SAM CLI
-        if: steps.changes.outputs.deploy == 'true'
         uses: aws-actions/setup-sam@v2
         with:
           use-installer: true
@@ -135,11 +120,9 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Build
-        if: steps.changes.outputs.deploy == 'true'
         run: sam build
 
       - name: Deploy
-        if: steps.changes.outputs.deploy == 'true'
         env:
           STACK_NAME: ${{ vars.BACKEND_STACK_NAME }}
           ALLOWED_ORIGINS: ${{ vars.BACKEND_ALLOWED_ORIGINS }}
