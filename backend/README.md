@@ -66,6 +66,11 @@ The frontend reaches the API through `intervalTimerApiUrl` in `src/environments/
 stack output without the trailing slash. It stays empty in the repository: the CI deploy fills it in (see below).
 For a production build made by hand, set it locally and don't commit it.
 
+`npm run start:real` in the repository root serves the dev frontend against the deployed API: it reads the
+`FunctionUrl` output (stack name and region from `BACKEND_STACK_NAME` and `AWS_REGION`, or from the repository
+variables via `gh`), writes it into a generated, gitignored `environment.real-backend.ts` and deletes that file when
+the dev server stops.
+
 Check it: `curl -i <FunctionUrl>/me` must return `401`.
 
 ### From CI

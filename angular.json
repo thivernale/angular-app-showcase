@@ -74,6 +74,14 @@
                   "with": "src/environments/environment.development.ts"
                 }
               ]
+            },
+            "real-backend": {
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.real-backend.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -89,6 +97,9 @@
             },
             "development": {
               "buildTarget": "angular-app-showcase:build:development"
+            },
+            "real-backend": {
+              "buildTarget": "angular-app-showcase:build:development,real-backend"
             }
           },
           "defaultConfiguration": "development"
