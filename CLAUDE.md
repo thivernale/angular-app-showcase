@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm start              # Dev server at http://0.0.0.0:4200
+npm start:real         # Dev server at http://0.0.0.0:4200 with deployed backend API for interval timer
 npm run build          # Production build
 npm run lint           # ESLint via angular-eslint
 npm test               # Run tests with Vitest (watch mode)
@@ -31,7 +32,7 @@ Node 25+ defines a native `globalThis.localStorage` that is `undefined` without 
 
 ## Architecture
 
-Angular 21 app using **standalone components** exclusively — no NgModules. All feature imports are declared directly in each component's `imports: []` array.
+Angular 22 app using **standalone components** exclusively — no NgModules. All feature imports are declared directly in each component's `imports: []` array.
 
 ### Feature Modules
 
