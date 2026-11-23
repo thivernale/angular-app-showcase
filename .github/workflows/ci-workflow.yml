@@ -58,7 +58,7 @@ jobs:
         uses: actions/setup-node@v7
         with:
           # Matches the Lambda runtime in backend/template.yaml
-          node-version: 22.x
+          node-version: 26.x
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
@@ -97,7 +97,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 22.x
+          node-version: 26.x
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
@@ -109,7 +109,7 @@ jobs:
           echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
 
       - name: Setup AWS SAM CLI
-        uses: aws-actions/setup-sam@v2
+        uses: aws-actions/setup-sam@v3
         with:
           use-installer: true
 
