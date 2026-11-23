@@ -15,7 +15,7 @@
     "prepare": "husky"
   },
   "private": true,
-  "packageManager": "npm@11.21.2",
+  "packageManager": "npm@11.21.3",
   "dependencies": {
     "@angular/common": "^22.2.3",
     "@angular/compiler": "^22.2.3",
@@ -37,7 +37,7 @@
     "@testing-library/angular": "^19.2.1",
     "@types/luxon": "^3.7.1",
     "@vitest/browser-playwright": "^5.1.1",
-    "angular-eslint": "22.7.0",
+    "angular-eslint": "22.8.0",
     "eslint": "^10.0.3",
     "husky": "^9.1.7",
     "jsdom": "^31.0.1",
